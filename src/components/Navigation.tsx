@@ -15,11 +15,9 @@ import {
   Sun,
   Moon,
   X,
-  Download,
 } from 'lucide-react';
 import { ViewTab, UserProfile, CurrencyCode } from '../types';
 import { SUPPORTED_CURRENCIES } from '../constants/currencies';
-import { downloadStandaloneHtml } from '../utils/downloadHtml';
 
 interface NavigationProps {
   activeTab: ViewTab;
@@ -231,16 +229,6 @@ export const Navigation: React.FC<NavigationProps> = ({
             </button>
 
             <button
-              id="header-download-html-btn"
-              onClick={() => downloadStandaloneHtml()}
-              className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold transition-colors shadow-2xs"
-              title="Download standalone single index.html file to run offline locally"
-            >
-              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Download HTML</span>
-            </button>
-
-            <button
               id="header-add-transaction-btn"
               onClick={onOpenAddModal}
               className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-all shadow-sm active:scale-95"
@@ -364,20 +352,6 @@ export const Navigation: React.FC<NavigationProps> = ({
                     </button>
                   );
                 })}
-              </div>
-
-              <div className="pt-2">
-                <button
-                  id="mobile-drawer-download-html-btn"
-                  onClick={() => {
-                    downloadStandaloneHtml();
-                    setShowMoreMenu(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download Standalone HTML (.html)</span>
-                </button>
               </div>
             </div>
 
