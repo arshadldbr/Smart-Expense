@@ -1,0 +1,575 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { storageService } from './services/storageService';
+import {
+  calculateMonthlySummary,
+  generateSmartInsights,
+} from './services/financialCalculations';
+import {
+  ViewTab,
+  Transaction,
+  MonthlyBudget,
+  Category,
+  SavingsGoal,
+  CreditDebitRecord,
+  Loan,
+  UserProfile,
+  CurrencyCode,
+} from './types';
+
+// Subcomponents
+import { Navigation } from './components/Navigation';
+import { DashboardView } from './components/DashboardView';
+import { TransactionsView } from './components/TransactionsView';
+import { BudgetView } from './components/BudgetView';
+import { SavingsView } from './components/SavingsView';
+import { CreditDebitView } from './components/CreditDebitView';
+import { LoansView } from './components/LoansView';
+import { CalendarView } from './components/CalendarView';
+import { ReportsView } from './components/ReportsView';
+import { SettingsView } from './components/SettingsView';
+import { AddTransactionModal } from './components/AddTransactionModal';
+
+export default function App() {
+  // Central application state backed by local storage
+  const [profile, setProfile] = useState<UserProfile>(() => storageService.getProfile());
+  const [categories, setCategories] = useState<Category[]>(() => storageService.getCategories());
+  const [transactions, setTransactions] = useState<Transaction[]>(() => storageService.getTransactions());
+  const [budgets, setBudgets] = useState<Record<string, MonthlyBudget>>(() => storageService.getBudgets());
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(() => storageService.getSavingsGoals());
+  const [creditDebitRecords, setCreditDebitRecords] = useState<CreditDebitRecord[]>(() => storageService.getCreditDebitRecords());
+  const [loans, setLoans] = useState<Loan[]>(() => storageService.getLoans());
+
+  // Navigation & Theme
+  const [activeTab, setActiveTab] = useState<ViewTab>('dashboard');
+  const [isDark, setIsDark] = useState<boolean>(() => storageService.getTheme() === 'dark');
+
+  // Month navigation: default to newest transaction's month or current month
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const txs = storageService.getTransactions();
+    if (txs.length > 0) {
+      return txs[0].date.substring(0, 7);
+    }
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  // Modal states
+  const [isAddTxModalOpen, setIsAddTxModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+  // Sync theme
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      storageService.setTheme('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      storageService.setTheme('light');
+    }
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark((prev) => !prev);
+
+  const activeCurrency: CurrencyCode = profile.currency || profile.defaultCurrency || 'PKR';
+
+  // Month switcher
+  const handleMonthChange = (offset: number) => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const date = new Date(year, month - 1 + offset, 1);
+    const newMonthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    setSelectedMonth(newMonthStr);
+  };
+
+  // Previous month string for MoM comparison
+  const previousMonth = useMemo(() => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const date = new Date(year, month - 2, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  }, [selectedMonth]);
+
+  // Current month's budget
+  const currentBudget: MonthlyBudget = useMemo(() => {
+    if (budgets[selectedMonth]) {
+      return budgets[selectedMonth];
+    }
+    return {
+      id: `budget_${selectedMonth}`,
+      month: selectedMonth,
+      totalBudget: profile.defaultMonthlyBudget || 100000,
+      categoryBudgets: {
+        cat_food: 20000,
+        cat_transport: 10000,
+        cat_bills: 15000,
+        cat_shopping: 12000,
+      },
+      warningThresholds: {
+        warn75: true,
+        warn90: true,
+        warn100: true,
+      },
+    };
+  }, [budgets, selectedMonth, profile.defaultMonthlyBudget]);
+
+  const previousBudget: MonthlyBudget = useMemo(() => {
+    if (budgets[previousMonth]) {
+      return budgets[previousMonth];
+    }
+    return {
+      id: `budget_${previousMonth}`,
+      month: previousMonth,
+      totalBudget: profile.defaultMonthlyBudget || 100000,
+      categoryBudgets: {},
+      warningThresholds: {
+        warn75: true,
+        warn90: true,
+        warn100: true,
+      },
+    };
+  }, [budgets, previousMonth, profile.defaultMonthlyBudget]);
+
+  // Financial summaries
+  const monthlySummary = useMemo(() => {
+    return calculateMonthlySummary(
+      transactions,
+      currentBudget,
+      categories,
+      creditDebitRecords,
+      loans,
+      savingsGoals,
+      selectedMonth
+    );
+  }, [transactions, currentBudget, categories, creditDebitRecords, loans, savingsGoals, selectedMonth]);
+
+  const previousSummary = useMemo(() => {
+    return calculateMonthlySummary(
+      transactions,
+      previousBudget,
+      categories,
+      creditDebitRecords,
+      loans,
+      savingsGoals,
+      previousMonth
+    );
+  }, [transactions, previousBudget, categories, creditDebitRecords, loans, savingsGoals, previousMonth]);
+
+  // Insights
+  const insights = useMemo(() => {
+    return generateSmartInsights(monthlySummary, previousSummary, savingsGoals, activeCurrency);
+  }, [monthlySummary, previousSummary, savingsGoals, activeCurrency]);
+
+  // Transaction handlers
+  const handleSaveTransaction = (txData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) => {
+    let updatedList: Transaction[];
+    const now = new Date().toISOString();
+    if (editingTransaction) {
+      const updatedTx: Transaction = {
+        ...editingTransaction,
+        ...txData,
+        updatedAt: now,
+      };
+      updatedList = transactions.map((t) => (t.id === editingTransaction.id ? updatedTx : t));
+    } else {
+      const newTx: Transaction = {
+        ...txData,
+        id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        createdAt: now,
+        updatedAt: now,
+      };
+      updatedList = [newTx, ...transactions];
+    }
+
+    setTransactions(updatedList);
+    storageService.saveTransactions(updatedList);
+    setIsAddTxModalOpen(false);
+    setEditingTransaction(null);
+  };
+
+  const handleDeleteTransaction = (id: string) => {
+    const updatedList = transactions.filter((t) => t.id !== id);
+    setTransactions(updatedList);
+    storageService.saveTransactions(updatedList);
+  };
+
+  // Budget handler
+  const handleUpdateBudget = (updates: Partial<MonthlyBudget>) => {
+    const updated: MonthlyBudget = {
+      ...currentBudget,
+      ...updates,
+    };
+    const newBudgets: Record<string, MonthlyBudget> = {
+      ...budgets,
+      [selectedMonth]: updated,
+    };
+    setBudgets(newBudgets);
+    storageService.saveBudgets(newBudgets);
+  };
+
+  // Savings Goal handlers
+  const handleAddSavingsGoal = (goalData: Omit<SavingsGoal, 'id' | 'history' | 'createdAt'>) => {
+    const newGoal: SavingsGoal = {
+      ...goalData,
+      id: `sg_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      history:
+        goalData.currentAmount > 0
+          ? [
+              {
+                id: `sgh_${Date.now()}`,
+                date: new Date().toISOString().split('T')[0],
+                amount: goalData.currentAmount,
+                type: 'deposit',
+                notes: 'Initial allocation',
+              },
+            ]
+          : [],
+    };
+    const updated = [...savingsGoals, newGoal];
+    setSavingsGoals(updated);
+    storageService.saveSavingsGoals(updated);
+  };
+
+  const handleRecordSavingsActivity = (
+    goalId: string,
+    amount: number,
+    type: 'deposit' | 'withdraw',
+    notes?: string
+  ) => {
+    const updated = savingsGoals.map((g) => {
+      if (g.id !== goalId) return g;
+      const newCurrent = type === 'deposit' ? g.currentAmount + amount : Math.max(0, g.currentAmount - amount);
+      const newHistoryItem = {
+        id: `sgh_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        amount,
+        type,
+        notes,
+      };
+      return {
+        ...g,
+        currentAmount: newCurrent,
+        history: [newHistoryItem, ...(g.history || [])],
+      };
+    });
+    setSavingsGoals(updated);
+    storageService.saveSavingsGoals(updated);
+  };
+
+  const handleDeleteSavingsGoal = (goalId: string) => {
+    const updated = savingsGoals.filter((g) => g.id !== goalId);
+    setSavingsGoals(updated);
+    storageService.saveSavingsGoals(updated);
+  };
+
+  // Credit / Debit handlers
+  const handleAddCreditDebitRecord = (
+    recData: Omit<CreditDebitRecord, 'id' | 'paidAmount' | 'remainingAmount' | 'status' | 'createdAt'>
+  ) => {
+    const newRec: CreditDebitRecord = {
+      ...recData,
+      id: `cd_${Date.now()}`,
+      paidAmount: 0,
+      remainingAmount: recData.amount,
+      status: 'pending',
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    const updated = [newRec, ...creditDebitRecords];
+    setCreditDebitRecords(updated);
+    storageService.saveCreditDebitRecords(updated);
+  };
+
+  const handleRecordCreditDebitPayment = (id: string, paymentAmount: number) => {
+    const updated = creditDebitRecords.map((r) => {
+      if (r.id !== id) return r;
+      const newPaid = Math.min(r.amount, r.paidAmount + paymentAmount);
+      const newRemaining = Math.max(0, r.amount - newPaid);
+      const newStatus: CreditDebitRecord['status'] =
+        newRemaining === 0 ? 'paid' : newPaid > 0 ? 'partially_paid' : 'pending';
+      return {
+        ...r,
+        paidAmount: newPaid,
+        remainingAmount: newRemaining,
+        status: newStatus,
+      };
+    });
+    setCreditDebitRecords(updated);
+    storageService.saveCreditDebitRecords(updated);
+  };
+
+  const handleDeleteCreditDebitRecord = (id: string) => {
+    const updated = creditDebitRecords.filter((r) => r.id !== id);
+    setCreditDebitRecords(updated);
+    storageService.saveCreditDebitRecords(updated);
+  };
+
+  // Loan handlers
+  const handleAddLoan = (
+    loanData: Omit<Loan, 'id' | 'paidAmount' | 'remainingAmount' | 'status' | 'repayments'>
+  ) => {
+    const newLoan: Loan = {
+      ...loanData,
+      id: `loan_${Date.now()}`,
+      paidAmount: 0,
+      remainingAmount: loanData.principalAmount,
+      status: 'active',
+      repayments: [],
+    };
+    const updated = [newLoan, ...loans];
+    setLoans(updated);
+    storageService.saveLoans(updated);
+  };
+
+  const handleRecordLoanRepayment = (loanId: string, amount: number, notes?: string) => {
+    const updated = loans.map((l) => {
+      if (l.id !== loanId) return l;
+      const newPaid = Math.min(l.principalAmount, l.paidAmount + amount);
+      const newRemaining = Math.max(0, l.principalAmount - newPaid);
+      const newStatus = newRemaining === 0 ? ('paid' as const) : ('active' as const);
+      const repaymentRecord = {
+        id: `repay_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        amount,
+        notes,
+      };
+      return {
+        ...l,
+        paidAmount: newPaid,
+        remainingAmount: newRemaining,
+        status: newStatus,
+        repayments: [repaymentRecord, ...(l.repayments || [])],
+      };
+    });
+    setLoans(updated);
+    storageService.saveLoans(updated);
+  };
+
+  const handleDeleteLoan = (loanId: string) => {
+    const updated = loans.filter((l) => l.id !== loanId);
+    setLoans(updated);
+    storageService.saveLoans(updated);
+  };
+
+  // Category and Settings handlers
+  const handleAddCategory = (catData: Omit<Category, 'id' | 'isDefault'>) => {
+    const newCat: Category = {
+      ...catData,
+      id: `custom_cat_${Date.now()}`,
+      isDefault: false,
+    };
+    const updated = [...categories, newCat];
+    setCategories(updated);
+    storageService.saveCategories(updated);
+  };
+
+  const handleDeleteCategory = (categoryId: string) => {
+    const updated = categories.filter((c) => c.id !== categoryId);
+    setCategories(updated);
+    storageService.saveCategories(updated);
+  };
+
+  const handleUpdateProfile = (updates: Partial<UserProfile>) => {
+    const updated = { ...profile, ...updates };
+    setProfile(updated);
+    storageService.saveProfile(updated);
+  };
+
+  const handleExportAllData = () => {
+    const jsonStr = storageService.exportAllData();
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smart_expense_tracker_backup_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleImportAllData = (jsonData: string): boolean => {
+    const success = storageService.importAllData(jsonData);
+    if (success) {
+      setProfile(storageService.getProfile());
+      setCategories(storageService.getCategories());
+      setTransactions(storageService.getTransactions());
+      setBudgets(storageService.getBudgets());
+      setSavingsGoals(storageService.getSavingsGoals());
+      setCreditDebitRecords(storageService.getCreditDebitRecords());
+      setLoans(storageService.getLoans());
+      return true;
+    }
+    return false;
+  };
+
+  const handleResetData = () => {
+    if (
+      window.confirm(
+        'Reset all financial data back to the demo showcase set? Any custom entries will be restored to default.'
+      )
+    ) {
+      storageService.resetToSampleData();
+      setProfile(storageService.getProfile());
+      setCategories(storageService.getCategories());
+      setTransactions(storageService.getTransactions());
+      setBudgets(storageService.getBudgets());
+      setSavingsGoals(storageService.getSavingsGoals());
+      setCreditDebitRecords(storageService.getCreditDebitRecords());
+      setLoans(storageService.getLoans());
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      {/* Navigation Header */}
+      <Navigation
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenAddModal={() => {
+          setEditingTransaction(null);
+          setIsAddTxModalOpen(true);
+        }}
+        profile={profile}
+        selectedMonth={selectedMonth}
+        onToggleTheme={toggleTheme}
+        isDark={isDark}
+        onSelectCurrency={(cur) => handleUpdateProfile({ defaultCurrency: cur, currency: cur })}
+      />
+
+      {/* Main Content Viewport */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 sm:pb-10">
+        {activeTab === 'dashboard' && (
+          <DashboardView
+            summary={monthlySummary}
+            previousSummary={previousSummary}
+            selectedMonth={selectedMonth}
+            onChangeMonth={handleMonthChange}
+            currency={activeCurrency}
+            insights={insights}
+            recentTransactions={transactions.slice(0, 8)}
+            categories={categories}
+            profile={profile}
+            onOpenAddModal={() => {
+              setEditingTransaction(null);
+              setIsAddTxModalOpen(true);
+            }}
+            onSelectTransaction={(tx) => {
+              setEditingTransaction(tx);
+              setIsAddTxModalOpen(true);
+            }}
+            setActiveTab={setActiveTab}
+          />
+        )}
+
+        {activeTab === 'transactions' && (
+          <TransactionsView
+            transactions={transactions}
+            categories={categories}
+            currency={activeCurrency}
+            onOpenAddModal={() => {
+              setEditingTransaction(null);
+              setIsAddTxModalOpen(true);
+            }}
+            onEditTransaction={(tx) => {
+              setEditingTransaction(tx);
+              setIsAddTxModalOpen(true);
+            }}
+            onDeleteTransaction={handleDeleteTransaction}
+          />
+        )}
+
+        {activeTab === 'budget' && (
+          <BudgetView
+            budget={currentBudget}
+            summary={monthlySummary}
+            categories={categories}
+            currency={activeCurrency}
+            selectedMonth={selectedMonth}
+            onUpdateBudget={handleUpdateBudget}
+          />
+        )}
+
+        {activeTab === 'savings' && (
+          <SavingsView
+            savingsGoals={savingsGoals}
+            currency={activeCurrency}
+            onAddGoal={handleAddSavingsGoal}
+            onRecordActivity={handleRecordSavingsActivity}
+            onDeleteGoal={handleDeleteSavingsGoal}
+          />
+        )}
+
+        {activeTab === 'credit_debit' && (
+          <CreditDebitView
+            records={creditDebitRecords}
+            currency={activeCurrency}
+            onAddRecord={handleAddCreditDebitRecord}
+            onRecordPayment={handleRecordCreditDebitPayment}
+            onDeleteRecord={handleDeleteCreditDebitRecord}
+          />
+        )}
+
+        {activeTab === 'loans' && (
+          <LoansView
+            loans={loans}
+            currency={activeCurrency}
+            onAddLoan={handleAddLoan}
+            onRecordRepayment={handleRecordLoanRepayment}
+            onDeleteLoan={handleDeleteLoan}
+          />
+        )}
+
+        {activeTab === 'calendar' && (
+          <CalendarView
+            transactions={transactions}
+            categories={categories}
+            currency={activeCurrency}
+            selectedMonth={selectedMonth}
+            onChangeMonth={handleMonthChange}
+            onSelectTransaction={(tx) => {
+              setEditingTransaction(tx);
+              setIsAddTxModalOpen(true);
+            }}
+          />
+        )}
+
+        {activeTab === 'reports' && (
+          <ReportsView
+            transactions={transactions}
+            categories={categories}
+            budget={currentBudget}
+            creditDebitRecords={creditDebitRecords}
+            loans={loans}
+            currency={activeCurrency}
+            selectedMonth={selectedMonth}
+          />
+        )}
+
+        {activeTab === 'settings' && (
+          <SettingsView
+            profile={profile}
+            categories={categories}
+            isDark={isDark}
+            onToggleTheme={toggleTheme}
+            onUpdateProfile={handleUpdateProfile}
+            onAddCategory={handleAddCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onExportAllData={handleExportAllData}
+            onImportAllData={handleImportAllData}
+            onResetData={handleResetData}
+          />
+        )}
+      </main>
+
+      {/* Add / Edit Transaction Modal */}
+      <AddTransactionModal
+        isOpen={isAddTxModalOpen}
+        onClose={() => {
+          setIsAddTxModalOpen(false);
+          setEditingTransaction(null);
+        }}
+        onSave={handleSaveTransaction}
+        categories={categories}
+        currency={activeCurrency}
+        editingTransaction={editingTransaction}
+      />
+    </div>
+  );
+}
