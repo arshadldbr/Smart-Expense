@@ -561,23 +561,30 @@ export default function App() {
       {/* Application Footer */}
       <footer
         id="app-branding-footer"
-        className="border-t border-slate-200 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xs mt-auto py-5 px-4 sm:px-6 lg:px-8 pb-24 sm:pb-6 transition-colors"
+        className="w-full border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md mt-auto py-6 px-4 sm:px-6 lg:px-8 pb-24 lg:pb-6 transition-colors shadow-xs"
       >
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-1.5 text-center text-xs text-slate-600 dark:text-slate-400">
-          <span>
-            Developed by <span className="font-semibold text-slate-800 dark:text-slate-200">A.K.A Tech</span>, A company by <span className="font-semibold text-slate-800 dark:text-slate-200">Arshad Khan Aastik</span>,
-          </span>
-          <span>
-            Whatsapp{' '}
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-slate-600 dark:text-slate-400">
+          <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
+            <span className="font-semibold text-slate-800 dark:text-slate-200">
+              Smart Expense Tracker
+            </span>
+            <span className="hidden sm:inline text-slate-400">•</span>
+            <span>
+              Developed by <strong className="font-semibold text-slate-900 dark:text-white">A.K.A Tech</strong>, A company by <strong className="font-semibold text-slate-900 dark:text-white">Arshad Khan Aastik</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span>Whatsapp:</span>
             <a
               href="https://wa.me/923149891182"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:underline transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/70 transition-colors"
             >
               +923149891182
             </a>
-          </span>
+          </div>
         </div>
       </footer>
 

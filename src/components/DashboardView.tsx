@@ -690,6 +690,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Dashboard Bottom Branding Badge */}
+      <div
+        id="dashboard-branding-credit"
+        className="mt-4 p-3 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-600 dark:text-slate-400 transition-colors shadow-xs"
+      >
+        <span>
+          Developed by{' '}
+          <strong className="font-semibold text-slate-800 dark:text-slate-200">
+            A.K.A Tech
+          </strong>
+          , A company by{' '}
+          <strong className="font-semibold text-slate-800 dark:text-slate-200">
+            Arshad Khan Aastik
+          </strong>
+        </span>
+        <span className="mx-1.5 text-slate-400">•</span>
+        <span>
+          Whatsapp:{' '}
+          <a
+            href="https://wa.me/923149891182"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+          >
+            +923149891182
+          </a>
+        </span>
+      </div>
     </div>
   );
 };

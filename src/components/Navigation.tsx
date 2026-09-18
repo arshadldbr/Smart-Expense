@@ -77,9 +77,24 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <span className="hidden sm:inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                   {formattedMonth}
                 </span>
+                <span className="hidden md:inline-flex text-[11px] text-slate-500 dark:text-slate-400 pl-2 border-l border-slate-200 dark:border-slate-800">
+                  By <strong className="font-semibold text-slate-700 dark:text-slate-300 ml-1">A.K.A Tech</strong>
+                </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
-                Welcome back, {profile.name}
+              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-1.5">
+                <span>Welcome back, {profile.name}</span>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <span className="text-[11px]">
+                  WhatsApp:{' '}
+                  <a
+                    href="https://wa.me/923149891182"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-600 dark:text-emerald-400 font-medium hover:underline"
+                  >
+                    +923149891182
+                  </a>
+                </span>
               </p>
             </div>
           </div>
