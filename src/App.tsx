@@ -417,7 +417,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Navigation Header */}
       <Navigation
         activeTab={activeTab}
@@ -434,7 +434,7 @@ export default function App() {
       />
 
       {/* Main Content Viewport */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 sm:pb-10">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 sm:pb-10">
         {activeTab === 'dashboard' && (
           <DashboardView
             summary={monthlySummary}
@@ -557,6 +557,29 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Application Footer */}
+      <footer
+        id="app-branding-footer"
+        className="border-t border-slate-200 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xs mt-auto py-5 px-4 sm:px-6 lg:px-8 pb-24 sm:pb-6 transition-colors"
+      >
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-1.5 text-center text-xs text-slate-600 dark:text-slate-400">
+          <span>
+            Developed by <span className="font-semibold text-slate-800 dark:text-slate-200">A.K.A Tech</span>, A company by <span className="font-semibold text-slate-800 dark:text-slate-200">Arshad Khan Aastik</span>,
+          </span>
+          <span>
+            Whatsapp{' '}
+            <a
+              href="https://wa.me/923149891182"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:underline transition-colors"
+            >
+              +923149891182
+            </a>
+          </span>
+        </div>
+      </footer>
 
       {/* Add / Edit Transaction Modal */}
       <AddTransactionModal

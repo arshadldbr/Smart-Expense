@@ -340,8 +340,20 @@ export const Navigation: React.FC<NavigationProps> = ({
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 text-center">
-              Smart Expense Tracker v1.0
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 text-center leading-relaxed">
+              Developed by <span className="font-semibold text-slate-700 dark:text-slate-300">A.K.A Tech</span>
+              <br />
+              A company by <span className="font-semibold text-slate-700 dark:text-slate-300">Arshad Khan Aastik</span>
+              <br />
+              Whatsapp:{' '}
+              <a
+                href="https://wa.me/923149891182"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-600 dark:text-emerald-400 font-medium hover:underline"
+              >
+                +923149891182
+              </a>
             </div>
           </div>
         </div>
