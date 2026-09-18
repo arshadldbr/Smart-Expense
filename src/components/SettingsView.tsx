@@ -18,6 +18,7 @@ import {
 import { UserProfile, Category, CurrencyCode } from '../types';
 import { SUPPORTED_CURRENCIES } from '../constants/currencies';
 import { CategoryIcon } from './CategoryIcon';
+import { downloadStandaloneHtml } from '../utils/downloadHtml';
 
 interface SettingsViewProps {
   profile: UserProfile;
@@ -364,6 +365,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <span>Reset to Demo Sample Data</span>
           </button>
         </div>
+      </div>
+
+      {/* Offline Standalone Single File HTML Export */}
+      <div className="bg-gradient-to-br from-emerald-500/10 via-white to-slate-50 dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-900 p-6 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/60 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Download className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                Standalone Single index.html File (Offline App)
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Run directly in any browser (Chrome, Edge, Safari, Firefox) without internet or server setup.
+              </p>
+            </div>
+          </div>
+
+          <button
+            id="download-standalone-html-settings-btn"
+            onClick={() => downloadStandaloneHtml()}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-all active:scale-95 shrink-0"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download HTML File</span>
+          </button>
+        </div>
+
+        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-200/60 dark:border-slate-800/80 pt-3">
+          This bundles all code, styles, and logic into one independent <strong>.html</strong> file. You can save it to your PC, laptop, or phone, double-click it, and manage your expenses completely offline. All changes are saved directly in your browser.
+        </p>
       </div>
     </div>
   );
