@@ -14,7 +14,6 @@ import {
   Plus,
   Receipt,
   Calendar,
-  Star,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -134,39 +133,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Giant Center Star Brand Mark */}
-      <section
-        id="giant-star-logo"
-        className="relative overflow-hidden rounded-[2rem] border border-emerald-200/70 dark:border-emerald-900/60 bg-gradient-to-br from-white via-emerald-50/70 to-teal-50/60 dark:from-slate-950 dark:via-emerald-950/30 dark:to-slate-900 px-6 py-8 sm:py-10 shadow-sm"
-      >
-        <div className="pointer-events-none absolute inset-0 opacity-40 dark:opacity-30">
-          <div className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/60 dark:border-emerald-500/30" />
-          <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-emerald-300/40 dark:border-emerald-500/20" />
-        </div>
-
-        <div className="relative flex flex-col items-center justify-center text-center">
-          <div className="relative flex h-44 w-44 sm:h-52 sm:w-52 items-center justify-center">
-            <div className="absolute inset-0 rounded-full bg-emerald-400/20 blur-2xl dark:bg-emerald-500/20" />
-            <div className="absolute inset-3 rounded-full border-2 border-emerald-300/80 bg-slate-950/95 shadow-[0_0_45px_rgba(16,185,129,0.35)] dark:border-emerald-500/60" />
-            <div className="absolute inset-7 rounded-full border border-emerald-400/40" />
-            <Star
-              aria-label="Smart Expense Tracker star logo"
-              className="relative z-10 h-28 w-28 sm:h-36 sm:w-36 text-emerald-400 drop-shadow-[0_0_18px_rgba(16,185,129,0.65)]"
-              fill="currentColor"
-              strokeWidth={1.5}
-            />
-          </div>
-          <div className="mt-5">
-            <div className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-              Smart Expense Tracker
-            </div>
-            <div className="mt-1 text-xs sm:text-sm font-semibold uppercase tracking-[0.28em] text-emerald-600 dark:text-emerald-400">
-              Your Money • Your Control
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Quick Action Buttons Bar (PRD Section 42) */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
