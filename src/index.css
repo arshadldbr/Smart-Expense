@@ -1,1 +1,88 @@
 @import "tailwindcss";
+
+
+/* Giant Star dashboard centerpiece */
+.star-hero {
+  isolation: isolate;
+}
+.giant-star-shell {
+  position: relative;
+  width: 172px;
+  height: 172px;
+  display: grid;
+  place-items: center;
+  color: #d1fae5;
+  filter: drop-shadow(0 0 22px rgba(52, 211, 153, .35));
+}
+.giant-star-icon {
+  position: relative;
+  z-index: 3;
+  width: 150px;
+  height: 150px;
+  color: #ecfdf5;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,.35));
+}
+.giant-star-glow {
+  position: absolute;
+  inset: 18px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(16,185,129,.42), rgba(16,185,129,.08) 48%, transparent 72%);
+  filter: blur(12px);
+}
+.giant-star-inner-ring {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(167,243,208,.22);
+  border-radius: 50%;
+  box-shadow: inset 0 0 28px rgba(16,185,129,.12), 0 0 40px rgba(16,185,129,.10);
+}
+.star-orbit {
+  position: absolute;
+  width: 245px;
+  height: 245px;
+  border: 1px solid rgba(110,231,183,.13);
+  border-radius: 50%;
+  transform: rotate(-18deg);
+}
+.star-orbit-one { border-top-color: rgba(110,231,183,.55); }
+.star-orbit-two {
+  width: 310px;
+  height: 130px;
+  transform: rotate(28deg);
+  border-color: rgba(45,212,191,.10);
+}
+.star-side-stat, .star-bottom-stat {
+  position: absolute;
+  z-index: 4;
+  min-width: 142px;
+  padding: 12px 14px;
+  border: 1px solid rgba(148,163,184,.16);
+  border-radius: 14px;
+  background: rgba(15,23,42,.62);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+.star-side-stat span, .star-bottom-stat span {
+  display: block;
+  color: rgb(148 163 184);
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.star-side-stat strong, .star-bottom-stat strong {
+  display: block;
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+}
+.star-side-left { left: 22px; top: 50%; transform: translateY(-50%); }
+.star-side-right { right: 22px; top: 50%; transform: translateY(-50%); }
+.star-bottom-stat { bottom: 18px; left: 50%; transform: translateX(-50%); }
+
+@media (max-width: 639px) {
+  .giant-star-shell { width: 145px; height: 145px; }
+  .giant-star-icon { width: 126px; height: 126px; }
+  .star-orbit { width: 210px; height: 210px; }
+  .star-orbit-two { width: 270px; height: 110px; }
+  .star-bottom-stat { bottom: 14px; min-width: 160px; text-align: center; }
+}
