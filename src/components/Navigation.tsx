@@ -15,6 +15,7 @@ import {
   Sun,
   Moon,
   X,
+  Star,
 } from 'lucide-react';
 import { ViewTab, UserProfile, CurrencyCode } from '../types';
 import { SUPPORTED_CURRENCIES } from '../constants/currencies';
@@ -66,8 +67,8 @@ export const Navigation: React.FC<NavigationProps> = ({
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-sm font-bold text-lg tracking-tight">
-              ₨
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-emerald-700 flex items-center justify-center text-white shadow-lg shadow-emerald-900/20">
+              <Star className="w-6 h-6" fill="currentColor" strokeWidth={1.5} />
             </div>
             <div>
               <div className="flex items-center gap-2">
