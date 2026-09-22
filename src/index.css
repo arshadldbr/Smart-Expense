@@ -1,14 +1,12 @@
 @import "tailwindcss";
 
-html {
-  scroll-behavior: smooth;
-}
 
-body {
-  min-width: 320px;
-  background: #f8fafc;
+/* Airplane-centered visual identity */
+@media (max-width: 1023px) {
+  #app-header .absolute.left-1\/2 { display: flex; }
 }
-
-.dark body {
-  background: #020617;
+@media (max-width: 640px) {
+  #app-header .absolute.left-1\/2 > div { width: 52px; height: 52px; }
+  #app-header .absolute.left-1\/2 svg { width: 30px; height: 30px; }
+  #app-header .max-w-7xl > div:first-child > div:last-child { max-width: 46vw; }
 }
