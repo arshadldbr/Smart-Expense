@@ -15,7 +15,6 @@ import {
   Sun,
   Moon,
   X,
-  Plane,
 } from 'lucide-react';
 import { ViewTab, UserProfile, CurrencyCode } from '../types';
 import { SUPPORTED_CURRENCIES } from '../constants/currencies';
@@ -65,7 +64,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         id="app-header"
         className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 relative flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-sm font-bold text-lg tracking-tight">
               ₨
@@ -97,17 +96,6 @@ export const Navigation: React.FC<NavigationProps> = ({
                   </a>
                 </span>
               </p>
-            </div>
-          </div>
-
-          {/* Center Airplane Brand Mark */}
-          <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center"
-            aria-hidden="true"
-          >
-            <div className="relative flex items-center justify-center w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 shadow-lg shadow-emerald-500/25 ring-4 ring-white/80 dark:ring-slate-900/80">
-              <div className="absolute inset-1 rounded-full border border-white/25" />
-              <Plane className="relative z-10 w-9 h-9 sm:w-11 sm:h-11 text-white drop-shadow-md rotate-[-10deg]" strokeWidth={2.1} />
             </div>
           </div>
 
