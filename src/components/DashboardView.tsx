@@ -14,6 +14,7 @@ import {
   Plus,
   Receipt,
   Calendar,
+  Star,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -133,6 +134,55 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Giant Star Centerpiece */}
+      <section
+        id="giant-star-centerpiece"
+        className="star-hero relative overflow-hidden rounded-[2rem] border border-emerald-200/70 dark:border-emerald-900/60 bg-slate-950 text-white shadow-2xl"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.24),transparent_48%),radial-gradient(circle_at_15%_20%,rgba(45,212,191,0.14),transparent_30%)]" />
+        <div className="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-emerald-400/10 blur-3xl" />
+        <div className="absolute -right-16 -bottom-20 h-64 w-64 rounded-full bg-teal-300/10 blur-3xl" />
+
+        <div className="relative min-h-[310px] sm:min-h-[350px] flex items-center justify-center px-5 py-8">
+          <div className="star-orbit star-orbit-one" />
+          <div className="star-orbit star-orbit-two" />
+
+          <div className="star-side-stat star-side-left hidden sm:block">
+            <span>Total Income</span>
+            <strong>{formatMoney(summary.totalIncome, currency)}</strong>
+          </div>
+
+          <div className="star-side-stat star-side-right hidden sm:block">
+            <span>Total Expenses</span>
+            <strong>{formatMoney(summary.totalExpenses, currency)}</strong>
+          </div>
+
+          <div className="relative z-10 flex flex-col items-center text-center">
+            <div className="giant-star-shell" aria-label="Smart Expense Tracker star logo">
+              <div className="giant-star-glow" />
+              <Star className="giant-star-icon" strokeWidth={1.15} fill="currentColor" />
+              <div className="giant-star-inner-ring" />
+            </div>
+            <div className="mt-3">
+              <div className="text-[11px] uppercase tracking-[0.38em] text-emerald-300/80 font-semibold">
+                Smart Expense Tracker
+              </div>
+              <div className="mt-1 text-xl sm:text-2xl font-black tracking-tight">
+                Your Money. Your Control.
+              </div>
+              <div className="mt-1 text-xs text-slate-400">
+                {formattedMonth} <span className="mx-1 text-slate-600">•</span> {currency}
+              </div>
+            </div>
+          </div>
+
+          <div className="star-bottom-stat">
+            <span>Remaining Budget</span>
+            <strong>{formatMoney(summary.remainingBudget, currency)}</strong>
+          </div>
+        </div>
+      </section>
 
       {/* Quick Action Buttons Bar (PRD Section 42) */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
