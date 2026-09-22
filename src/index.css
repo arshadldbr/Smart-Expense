@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  background: #f8fafc;
+}
+
+.dark body {
+  background: #020617;
+}
