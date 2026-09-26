@@ -49,9 +49,13 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+
   // Filter & Search Logic
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
+    return safeTransactions.filter((tx) => {
+      if (!tx) return false;
       // Type filter
       if (selectedType !== 'all' && tx.type !== selectedType) {
         return false;
@@ -67,12 +71,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       // Search query filter (matches description, merchant, notes, amount)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
-        const cat = categories.find((c) => c.id === tx.categoryId);
-        const matchesDesc = tx.description.toLowerCase().includes(query);
-        const matchesMerchant = tx.merchant?.toLowerCase().includes(query);
-        const matchesCategory = cat?.name.toLowerCase().includes(query);
-        const matchesNotes = tx.notes?.toLowerCase().includes(query);
-        const matchesAmount = tx.amount.toString().includes(query);
+        const cat = safeCategories.find((c) => c && c.id === tx.categoryId);
+        const matchesDesc = (tx.description || '').toLowerCase().includes(query);
+        const matchesMerchant = (tx.merchant || '').toLowerCase().includes(query);
+        const matchesCategory = (cat?.name || '').toLowerCase().includes(query);
+        const matchesNotes = (tx.notes || '').toLowerCase().includes(query);
+        const matchesAmount = (tx.amount ?? '').toString().includes(query);
 
         if (!matchesDesc && !matchesMerchant && !matchesCategory && !matchesNotes && !matchesAmount) {
           return false;
