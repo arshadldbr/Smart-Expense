@@ -83,6 +83,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const safeCategories = Array.isArray(categories) ? categories : [];
 
   // Initialize or reset form values
   useEffect(() => {
@@ -97,7 +98,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       setMerchant(editingTransaction.merchant || '');
       setPaymentMethod(editingTransaction.paymentMethod);
       setDate(editingTransaction.date);
-      setTime(editingTransaction.time);
+      setTime(editingTransaction.time || '12:00');
       setNotes(editingTransaction.notes || '');
       setReceiptUrl(editingTransaction.receiptUrl || '');
     } else {
@@ -108,7 +109,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
       setType('expense');
       setAmount('');
-      const defaultExpCat = categories.find((c) => c.type === 'expense');
+      const defaultExpCat = safeCategories.find((c) => c && c.type === 'expense');
       setCategoryId(defaultExpCat ? defaultExpCat.id : '');
       setSubcategoryId('');
       setDescription('');
@@ -121,16 +122,17 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     }
     setErrorMsg('');
     setSuggestedCat(null);
-  }, [isOpen, editingTransaction, categories]);
+  }, [isOpen, editingTransaction, safeCategories]);
 
   // Update categories available based on transaction type
-  const availableCategories = categories.filter((c) => {
+  const availableCategories = safeCategories.filter((c) => {
+    if (!c) return false;
     if (type === 'income') return c.type === 'income';
     return c.type === 'expense';
   });
 
   // Selected category object
-  const selectedCategoryObj = categories.find((c) => c.id === categoryId);
+  const selectedCategoryObj = safeCategories.find((c) => c && c.id === categoryId);
 
   // Run Smart Categorization Engine on typing description/merchant
   const handleDescriptionChange = (text: string) => {
@@ -139,7 +141,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       setSuggestedCat(null);
       return;
     }
-    const match = suggestCategory(text, merchant, categories);
+    const match = suggestCategory(text, merchant, safeCategories);
     if (match && match.categoryId !== categoryId) {
       setSuggestedCat(match);
     } else {
