@@ -57,10 +57,12 @@ export const SUPPORTED_CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
   },
 };
 
-export function formatMoney(amount: number, currencyCode: CurrencyCode = 'PKR', options?: { showSign?: boolean; showCents?: boolean }): string {
-  const config = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.PKR;
-  const isNegative = amount < 0;
-  const absAmount = Math.abs(amount);
+export function formatMoney(amount: number | null | undefined, currencyCode: CurrencyCode = 'PKR', options?: { showSign?: boolean; showCents?: boolean }): string {
+  const safeCode = (currencyCode && SUPPORTED_CURRENCIES[currencyCode]) ? currencyCode : 'PKR';
+  const config = SUPPORTED_CURRENCIES[safeCode];
+  const num = typeof amount === 'number' && Number.isFinite(amount) ? amount : (Number(amount) || 0);
+  const isNegative = num < 0;
+  const absAmount = Math.abs(num);
   
   // Format with thousands separator
   const formattedNumber = new Intl.NumberFormat('en-US', {
