@@ -30,10 +30,16 @@ import { SettingsView } from './components/SettingsView';
 import { AddTransactionModal } from './components/AddTransactionModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthScreen } from './components/AuthScreen';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
-function MainTrackerApp() {
-  const { user, loading, logout } = useAuth();
+interface MainTrackerAppProps {
+  isDark: boolean;
+  onToggleTheme: () => void;
+}
+
+function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
+  const { user, logout } = useAuth();
 
   // Central application state backed by local storage
   const [profile, setProfile] = useState<UserProfile>(() => storageService.getProfile());
@@ -59,14 +65,15 @@ function MainTrackerApp() {
 
   // Navigation & Theme
   const [activeTab, setActiveTab] = useState<ViewTab>('dashboard');
-  const [isDark, setIsDark] = useState<boolean>(() => storageService.getTheme() === 'dark');
 
   // Month navigation: default to newest transaction's month or current month
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const txs = storageService.getTransactions();
-    if (txs.length > 0) {
-      return txs[0].date.substring(0, 7);
-    }
+    try {
+      const txs = storageService.getTransactions();
+      if (Array.isArray(txs) && txs.length > 0 && txs[0] && txs[0].date) {
+        return txs[0].date.substring(0, 7);
+      }
+    } catch {}
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
@@ -75,65 +82,48 @@ function MainTrackerApp() {
   const [isAddTxModalOpen, setIsAddTxModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-  // Sync theme
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      storageService.setTheme('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      storageService.setTheme('light');
-    }
-  }, [isDark]);
-
-  const toggleTheme = () => setIsDark((prev) => !prev);
-
-  // Authentication Loading State
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-xl text-2xl font-bold mb-4 animate-bounce">
-          ₨
-        </div>
-        <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400">
-          <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
-          <span>Verifying authentication...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // If user is not authenticated, show the Authentication screen
-  if (!user) {
-    return <AuthScreen isDark={isDark} onToggleTheme={toggleTheme} />;
-  }
-
-  const activeCurrency: CurrencyCode = profile.currency || profile.defaultCurrency || 'PKR';
+  const activeCurrency: CurrencyCode = profile?.currency || profile?.defaultCurrency || 'PKR';
 
   // Month switcher
   const handleMonthChange = (offset: number) => {
-    const [year, month] = selectedMonth.split('-').map(Number);
-    const date = new Date(year, month - 1 + offset, 1);
-    const newMonthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    setSelectedMonth(newMonthStr);
+    try {
+      const safeStr =
+        selectedMonth && selectedMonth.includes('-')
+          ? selectedMonth
+          : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const [year, month] = safeStr.split('-').map(Number);
+      const date = new Date(year, (month || 1) - 1 + offset, 1);
+      const newMonthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      setSelectedMonth(newMonthStr);
+    } catch (e) {
+      console.warn('Error changing month:', e);
+    }
   };
 
   // Previous month string for MoM comparison
   const previousMonth = useMemo(() => {
-    const [year, month] = selectedMonth.split('-').map(Number);
-    const date = new Date(year, month - 2, 1);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    try {
+      const safeStr =
+        selectedMonth && selectedMonth.includes('-')
+          ? selectedMonth
+          : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const [year, month] = safeStr.split('-').map(Number);
+      const date = new Date(year, (month || 1) - 2, 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    } catch {
+      return '2026-08';
+    }
   }, [selectedMonth]);
 
   // Current month's budget
   const currentBudget: MonthlyBudget = useMemo(() => {
-    if (budgets[selectedMonth]) {
+    if (budgets && budgets[selectedMonth]) {
       return budgets[selectedMonth];
     }
     return {
-      id: `budget_${selectedMonth}`,
-      month: selectedMonth,
-      totalBudget: profile.defaultMonthlyBudget || 100000,
+      id: `budget_${selectedMonth || 'current'}`,
+      month: selectedMonth || '2026-09',
+      totalBudget: profile?.defaultMonthlyBudget || 100000,
       categoryBudgets: {
         cat_food: 20000,
         cat_transport: 10000,
@@ -146,16 +136,16 @@ function MainTrackerApp() {
         warn100: true,
       },
     };
-  }, [budgets, selectedMonth, profile.defaultMonthlyBudget]);
+  }, [budgets, selectedMonth, profile?.defaultMonthlyBudget]);
 
   const previousBudget: MonthlyBudget = useMemo(() => {
-    if (budgets[previousMonth]) {
+    if (budgets && budgets[previousMonth]) {
       return budgets[previousMonth];
     }
     return {
-      id: `budget_${previousMonth}`,
-      month: previousMonth,
-      totalBudget: profile.defaultMonthlyBudget || 100000,
+      id: `budget_${previousMonth || 'previous'}`,
+      month: previousMonth || '2026-08',
+      totalBudget: profile?.defaultMonthlyBudget || 100000,
       categoryBudgets: {},
       warningThresholds: {
         warn75: true,
@@ -163,36 +153,36 @@ function MainTrackerApp() {
         warn100: true,
       },
     };
-  }, [budgets, previousMonth, profile.defaultMonthlyBudget]);
+  }, [budgets, previousMonth, profile?.defaultMonthlyBudget]);
 
   // Financial summaries
   const monthlySummary = useMemo(() => {
     return calculateMonthlySummary(
-      transactions,
+      transactions || [],
       currentBudget,
-      categories,
-      creditDebitRecords,
-      loans,
-      savingsGoals,
-      selectedMonth
+      categories || [],
+      creditDebitRecords || [],
+      loans || [],
+      savingsGoals || [],
+      selectedMonth || '2026-09'
     );
   }, [transactions, currentBudget, categories, creditDebitRecords, loans, savingsGoals, selectedMonth]);
 
   const previousSummary = useMemo(() => {
     return calculateMonthlySummary(
-      transactions,
+      transactions || [],
       previousBudget,
-      categories,
-      creditDebitRecords,
-      loans,
-      savingsGoals,
-      previousMonth
+      categories || [],
+      creditDebitRecords || [],
+      loans || [],
+      savingsGoals || [],
+      previousMonth || '2026-08'
     );
   }, [transactions, previousBudget, categories, creditDebitRecords, loans, savingsGoals, previousMonth]);
 
   // Insights
   const insights = useMemo(() => {
-    return generateSmartInsights(monthlySummary, previousSummary, savingsGoals, activeCurrency);
+    return generateSmartInsights(monthlySummary, previousSummary, savingsGoals || [], activeCurrency);
   }, [monthlySummary, previousSummary, savingsGoals, activeCurrency]);
 
   // Transaction handlers
@@ -649,8 +639,10 @@ function MainTrackerApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <MainTrackerApp />
-    </AuthProvider>
+    <ErrorBoundary fallbackTitle="Smart Expense Tracker encountered an error">
+      <AuthProvider>
+        <MainTrackerApp />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
