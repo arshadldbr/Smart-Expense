@@ -1,20 +1,16 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Smart Expense Tracker — GitHub Pages
 
-# Run and deploy your AI Studio app
+This package is configured to deploy automatically to GitHub Pages when you push it to the repository's `main` branch.
 
-This contains everything you need to run your app locally.
+## Deploy
+1. Create/use a GitHub repository.
+2. Push **all files in this package** to the `main` branch.
+3. GitHub Actions will install dependencies, build the React app, and publish `dist/` to GitHub Pages.
+4. In the repository, open **Settings → Pages** and make sure the source is **GitHub Actions**.
 
-View your app in AI Studio: https://ai.studio/apps/a47c5bfd-c4c9-4db0-8808-f15dac929a36
+The Vite configuration automatically detects whether the repository is a normal project site (`https://USER.github.io/REPO/`) or a user site (`https://USER.github.io/`).
 
-## Run Locally
+## Firebase authentication
+The app uses Firebase Email/Password Authentication. The existing Firebase web configuration is already included in `src/services/firebase.ts`. Firebase requires Email/Password to be enabled and the deployed GitHub Pages domain to be an authorized domain.
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+The authentication flow has been hardened so the Firebase auth-state observer is the single source of truth after sign-up/sign-in, and a React error boundary now shows the actual runtime error instead of a white blank screen.
