@@ -20,12 +20,8 @@ function githubPagesSpa(): Plugin {
 }
 
 export default defineConfig(() => {
-  const repository = process.env.GITHUB_REPOSITORY?.split('/')[1] || '';
-  const configuredBase = process.env.VITE_BASE_PATH;
-  const base = configuredBase || (repository && !repository.endsWith('.github.io') ? `/${repository}/` : '/');
-
   return {
-    base,
+    base: './',
     plugins: [react(), tailwindcss(), githubPagesSpa()],
     resolve: {
       alias: {
