@@ -45,15 +45,17 @@ export const CreditDebitView: React.FC<CreditDebitViewProps> = ({
   const [notes, setNotes] = useState('');
 
   // Summaries
-  const totalCredit = records
-    .filter((r) => r.type === 'credit')
-    .reduce((sum, r) => sum + r.remainingAmount, 0);
+  const safeRecords = Array.isArray(records) ? records : [];
+  const totalCredit = safeRecords
+    .filter((r) => r && r.type === 'credit')
+    .reduce((sum, r) => sum + (Number(r?.remainingAmount) || 0), 0);
 
-  const totalDebit = records
-    .filter((r) => r.type === 'debit')
-    .reduce((sum, r) => sum + r.remainingAmount, 0);
+  const totalDebit = safeRecords
+    .filter((r) => r && r.type === 'debit')
+    .reduce((sum, r) => sum + (Number(r?.remainingAmount) || 0), 0);
 
-  const filteredRecords = records.filter((r) => {
+  const filteredRecords = safeRecords.filter((r) => {
+    if (!r) return false;
     if (activeFilter === 'credit') return r.type === 'credit';
     if (activeFilter === 'debit') return r.type === 'debit';
     return true;
