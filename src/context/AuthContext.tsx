@@ -42,7 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (err) {
         console.error('Error in onAuthStateChanged listener:', err);
-        setUser(null);
       } finally {
         setLoading(false);
       }
