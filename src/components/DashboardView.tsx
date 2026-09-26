@@ -73,14 +73,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const [showComparison, setShowComparison] = useState(false);
 
-  // Parse display month name
-  const [year, month] = selectedMonth.split('-');
-  const monthDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+  // Parse display month name safely
+  const safeMonth =
+    selectedMonth && typeof selectedMonth === 'string' && selectedMonth.includes('-')
+      ? selectedMonth
+      : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+  const [year, month] = safeMonth.split('-');
+  const monthDate = new Date(parseInt(year, 10) || new Date().getFullYear(), (parseInt(month, 10) || 1) - 1, 1);
   const formattedMonth = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+  // Safeguard summary object
+  const safeSummary: MonthlyFinancialSummary = summary || {
+    month: safeMonth,
+    totalIncome: 0,
+    totalExpenses: 0,
+    remainingBudget: 0,
+    netSavings: 0,
+    totalCredit: 0,
+    totalDebit: 0,
+    outstandingLoans: 0,
+    budgetLimit: 0,
+    budgetUsedPercentage: 0,
+    isWarn75: false,
+    isWarn90: false,
+    isWarn100: false,
+    isExceeded: false,
+    categorySummaries: [],
+    dailySpending: [],
+  };
+
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeTransactions = Array.isArray(recentTransactions) ? recentTransactions : [];
+  const safeInsights = Array.isArray(insights) ? insights : [];
+  const safeCategorySummaries = Array.isArray(safeSummary.categorySummaries) ? safeSummary.categorySummaries : [];
+
   // Category donut data
-  const pieData = summary.categorySummaries
-    .filter((c) => c.spent > 0)
+  const pieData = safeCategorySummaries
+    .filter((c) => c && c.spent > 0)
     .map((c) => ({
       name: c.categoryName,
       value: c.spent,
@@ -89,10 +118,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Month-to-month comparison differences
   const expenseDiff = previousSummary
-    ? summary.totalExpenses - previousSummary.totalExpenses
+    ? safeSummary.totalExpenses - (previousSummary.totalExpenses || 0)
     : 0;
   const incomeDiff = previousSummary
-    ? summary.totalIncome - previousSummary.totalIncome
+    ? safeSummary.totalIncome - (previousSummary.totalIncome || 0)
     : 0;
 
   return (
@@ -150,12 +179,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <div className="star-side-stat star-side-left hidden sm:block">
             <span>Total Income</span>
-            <strong>{formatMoney(summary.totalIncome, currency)}</strong>
+            <strong>{formatMoney(safeSummary.totalIncome, currency)}</strong>
           </div>
 
           <div className="star-side-stat star-side-right hidden sm:block">
             <span>Total Expenses</span>
-            <strong>{formatMoney(summary.totalExpenses, currency)}</strong>
+            <strong>{formatMoney(safeSummary.totalExpenses, currency)}</strong>
           </div>
 
           <div className="relative z-10 flex flex-col items-center text-center">
@@ -179,7 +208,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <div className="star-bottom-stat">
             <span>Remaining Budget</span>
-            <strong>{formatMoney(summary.remainingBudget, currency)}</strong>
+            <strong>{formatMoney(safeSummary.remainingBudget, currency)}</strong>
           </div>
         </div>
       </section>
@@ -243,7 +272,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-lg font-bold text-slate-900 dark:text-white truncate">
-              {formatMoney(summary.totalIncome, currency)}
+              {formatMoney(safeSummary.totalIncome, currency)}
             </div>
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
               Inflows this month
@@ -264,7 +293,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-lg font-bold text-slate-900 dark:text-white truncate">
-              {formatMoney(summary.totalExpenses, currency)}
+              {formatMoney(safeSummary.totalExpenses, currency)}
             </div>
             <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">
               Outflows this month
@@ -279,16 +308,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Remaining Budget</span>
-            <div className={`p-1.5 rounded-lg ${summary.isExceeded ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' : 'bg-teal-100 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400'}`}>
+            <div className={`p-1.5 rounded-lg ${safeSummary.isExceeded ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' : 'bg-teal-100 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400'}`}>
               <Wallet className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="mt-3">
-            <div className={`text-lg font-bold truncate ${summary.isExceeded ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-              {formatMoney(summary.remainingBudget, currency)}
+            <div className={`text-lg font-bold truncate ${safeSummary.isExceeded ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+              {formatMoney(safeSummary.remainingBudget, currency)}
             </div>
-            <span className={`text-[10px] font-medium ${summary.isExceeded ? 'text-rose-600' : 'text-slate-500 dark:text-slate-400'}`}>
-              {summary.budgetLimit > 0 ? `${100 - summary.budgetUsedPercentage}% left` : 'No budget set'}
+            <span className={`text-[10px] font-medium ${safeSummary.isExceeded ? 'text-rose-600' : 'text-slate-500 dark:text-slate-400'}`}>
+              {safeSummary.budgetLimit > 0 ? `${100 - safeSummary.budgetUsedPercentage}% left` : 'No budget set'}
             </span>
           </div>
         </div>
@@ -307,7 +336,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-lg font-bold text-slate-900 dark:text-white truncate">
-              {formatMoney(summary.netSavings, currency)}
+              {formatMoney(safeSummary.netSavings, currency)}
             </div>
             <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
               Saved this month
@@ -329,7 +358,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-lg font-bold text-amber-600 dark:text-amber-400 truncate">
-              {formatMoney(summary.totalCredit, currency)}
+              {formatMoney(safeSummary.totalCredit, currency)}
             </div>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
               Payables balance
@@ -351,7 +380,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-lg font-bold text-cyan-600 dark:text-cyan-400 truncate">
-              {formatMoney(summary.totalDebit, currency)}
+              {formatMoney(safeSummary.totalDebit, currency)}
             </div>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
               Receivables balance
@@ -373,7 +402,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-lg font-bold text-purple-600 dark:text-purple-400 truncate">
-              {formatMoney(summary.outstandingLoans, currency)}
+              {formatMoney(safeSummary.outstandingLoans, currency)}
             </div>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
               Active principal
@@ -390,30 +419,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                 Monthly Budget Utilization
               </h2>
-              {summary.isExceeded && (
+              {safeSummary.isExceeded && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-400 flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" /> Exceeded!
                 </span>
               )}
-              {summary.isWarn90 && !summary.isExceeded && (
+              {safeSummary.isWarn90 && !safeSummary.isExceeded && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" /> Critical (90%+)
                 </span>
               )}
-              {summary.isWarn75 && (
+              {safeSummary.isWarn75 && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400">
                   75% Consumed
                 </span>
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {formatMoney(summary.totalExpenses, currency)} spent of {formatMoney(summary.budgetLimit, currency)} total limit
+              {formatMoney(safeSummary.totalExpenses, currency)} spent of {formatMoney(safeSummary.budgetLimit, currency)} total limit
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-              {summary.budgetUsedPercentage}% Used
+              {safeSummary.budgetUsedPercentage}% Used
             </span>
             <button
               onClick={() => setActiveTab('budget')}
@@ -428,21 +457,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
-              summary.isExceeded
+              safeSummary.isExceeded
                 ? 'bg-rose-500'
-                : summary.budgetUsedPercentage >= 90
+                : safeSummary.budgetUsedPercentage >= 90
                 ? 'bg-amber-500'
-                : summary.budgetUsedPercentage >= 75
+                : safeSummary.budgetUsedPercentage >= 75
                 ? 'bg-yellow-500'
                 : 'bg-emerald-500'
             }`}
-            style={{ width: `${Math.min(100, summary.budgetUsedPercentage)}%` }}
+            style={{ width: `${Math.min(100, safeSummary.budgetUsedPercentage)}%` }}
           />
         </div>
       </div>
 
       {/* Smart Financial Insights (PRD Section 27) */}
-      {insights.length > 0 && (
+      {safeInsights.length > 0 && (
         <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-emerald-50/40 dark:from-slate-900 dark:to-emerald-950/20 border border-slate-200 dark:border-slate-800 space-y-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -451,7 +480,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {insights.map((insight) => (
+            {safeInsights.map((insight) => (
               <div
                 key={insight.id}
                 className="p-3.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 shadow-sm"
@@ -494,9 +523,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="h-64 w-full">
-            {summary.dailySpending.some((d) => d.expense > 0 || d.income > 0) ? (
+            {safeSummary.dailySpending && safeSummary.dailySpending.some((d) => d.expense > 0 || d.income > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={summary.dailySpending} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={safeSummary.dailySpending} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                   <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v > 999 ? `${(v / 1000).toFixed(0)}k` : v}`} />
@@ -564,7 +593,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           {/* Top 3 categories mini-legend */}
           <div className="space-y-1.5 border-t border-slate-100 dark:border-slate-800 pt-3">
-            {summary.categorySummaries.slice(0, 3).map((cat) => (
+            {safeCategorySummaries.slice(0, 3).map((cat) => (
               <div key={cat.categoryId} className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-2 truncate">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
@@ -604,14 +633,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span className="text-[11px] font-medium text-slate-500">Expenses Comparison</span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-base font-bold text-slate-900 dark:text-white">
-                    {formatMoney(summary.totalExpenses, currency)}
+                    {formatMoney(safeSummary.totalExpenses, currency)}
                   </span>
                   <span className={`text-xs font-semibold ${expenseDiff > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {expenseDiff > 0 ? `+${formatMoney(expenseDiff, currency)}` : `${formatMoney(expenseDiff, currency)}`}
                   </span>
                 </div>
                 <span className="text-[10px] text-slate-400">
-                  vs {formatMoney(previousSummary.totalExpenses, currency)} prev month
+                  vs {formatMoney(previousSummary?.totalExpenses || 0, currency)} prev month
                 </span>
               </div>
 
@@ -619,14 +648,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span className="text-[11px] font-medium text-slate-500">Income Comparison</span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-base font-bold text-slate-900 dark:text-white">
-                    {formatMoney(summary.totalIncome, currency)}
+                    {formatMoney(safeSummary.totalIncome, currency)}
                   </span>
                   <span className={`text-xs font-semibold ${incomeDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {incomeDiff >= 0 ? `+${formatMoney(incomeDiff, currency)}` : `${formatMoney(incomeDiff, currency)}`}
                   </span>
                 </div>
                 <span className="text-[10px] text-slate-400">
-                  vs {formatMoney(previousSummary.totalIncome, currency)} prev month
+                  vs {formatMoney(previousSummary?.totalIncome || 0, currency)} prev month
                 </span>
               </div>
 
@@ -634,7 +663,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span className="text-[11px] font-medium text-slate-500">Net Month Surplus</span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-base font-bold text-slate-900 dark:text-white">
-                    {formatMoney(summary.totalIncome - summary.totalExpenses, currency)}
+                    {formatMoney(safeSummary.totalIncome - safeSummary.totalExpenses, currency)}
                   </span>
                 </div>
                 <span className="text-[10px] text-slate-400">
@@ -665,10 +694,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
 
-        {recentTransactions.length > 0 ? (
+        {safeTransactions.length > 0 ? (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {recentTransactions.slice(0, 5).map((tx) => {
-              const cat = categories.find((c) => c.id === tx.categoryId);
+            {safeTransactions.slice(0, 5).map((tx) => {
+              const cat = safeCategories.find((c) => c && c.id === tx.categoryId);
               const isIncome = tx.type === 'income';
               const isExpense = tx.type === 'expense' || tx.type === 'loan_repayment';
               return (
