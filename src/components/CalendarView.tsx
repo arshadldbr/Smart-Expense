@@ -29,14 +29,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onChangeMonth,
   onSelectTransaction,
 }) => {
-  const [yearStr, monthStr] = selectedMonth.split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10); // 1-indexed
+  const safeMonth = selectedMonth && typeof selectedMonth === 'string' && selectedMonth.includes('-')
+    ? selectedMonth
+    : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+  const [yearStr, monthStr] = safeMonth.split('-');
+  const year = parseInt(yearStr, 10) || new Date().getFullYear();
+  const month = parseInt(monthStr, 10) || (new Date().getMonth() + 1); // 1-indexed
 
   // Today's date
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDayDate, setSelectedDayDate] = useState<string>(
-    todayStr.startsWith(selectedMonth) ? todayStr : `${selectedMonth}-01`
+    todayStr.startsWith(safeMonth) ? todayStr : `${safeMonth}-01`
   );
 
   // Month header text
@@ -47,14 +50,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
 
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+
   // Aggregate financial metrics per day for this month
   const dailyData: Record<number, { expense: number; income: number; count: number }> = {};
   for (let d = 1; d <= daysInMonth; d++) {
     dailyData[d] = { expense: 0, income: 0, count: 0 };
   }
 
-  for (const tx of transactions) {
-    if (tx.date.startsWith(selectedMonth)) {
+  for (const tx of safeTransactions) {
+    if (tx && tx.date && tx.date.startsWith(safeMonth)) {
       const dayNum = parseInt(tx.date.split('-')[2], 10);
       if (dailyData[dayNum]) {
         if (tx.type === 'expense' || tx.type === 'loan_repayment') {
