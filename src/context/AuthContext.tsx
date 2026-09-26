@@ -42,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (err) {
         console.error('Error in onAuthStateChanged listener:', err);
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -52,10 +53,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Firebase's auth-state observer is the single source of truth for the
-      // authenticated user. Avoid setting user twice, which can cause a render
-      // race immediately after a successful mobile sign-in/sign-up.
-      await loginWithEmailPassword(email, password);
+      const loggedUser = await loginWithEmailPassword(email, password);
+      storageService.initForUser(loggedUser.uid, loggedUser.email, loggedUser.displayName);
+      setUser(loggedUser);
     } catch (err: any) {
       const friendlyMsg = getFriendlyAuthErrorMessage(err?.code || err?.message || 'Login failed');
       throw new Error(friendlyMsg);
@@ -64,9 +64,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, displayName?: string) => {
     try {
-      // createUserWithEmailAndPassword also triggers onAuthStateChanged.
-      // Let that observer initialize the user-scoped storage and UI exactly once.
-      await registerWithEmailPassword(email, password, displayName);
+      const newUser = await registerWithEmailPassword(email, password, displayName);
+      storageService.initForUser(newUser.uid, newUser.email, displayName || newUser.displayName);
+      setUser(newUser);
     } catch (err: any) {
       const friendlyMsg = getFriendlyAuthErrorMessage(err?.code || err?.message || 'Registration failed');
       throw new Error(friendlyMsg);
