@@ -20,22 +20,33 @@ export function roundMoney(amount: number): number {
  * Filter transactions for a given month formatted as 'YYYY-MM'
  */
 export function getTransactionsForMonth(transactions: Transaction[], monthStr: string): Transaction[] {
-  return transactions.filter((t) => t.date.startsWith(monthStr));
+  if (!Array.isArray(transactions) || !monthStr) return [];
+  return transactions.filter((t) => t && t.date && t.date.startsWith(monthStr));
 }
 
 /**
  * Compute the comprehensive monthly financial summary
  */
 export function calculateMonthlySummary(
-  transactions: Transaction[],
+  transactions: Transaction[] = [],
   budget: MonthlyBudget | undefined,
-  categories: Category[],
-  creditDebitRecords: CreditDebitRecord[],
-  loans: Loan[],
-  savingsGoals: SavingsGoal[],
-  monthStr: string
+  categories: Category[] = [],
+  creditDebitRecords: CreditDebitRecord[] = [],
+  loans: Loan[] = [],
+  savingsGoals: SavingsGoal[] = [],
+  monthStr: string = '2026-09'
 ): MonthlyFinancialSummary {
-  const monthTransactions = getTransactionsForMonth(transactions, monthStr);
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeCreditDebit = Array.isArray(creditDebitRecords) ? creditDebitRecords : [];
+  const safeLoans = Array.isArray(loans) ? loans : [];
+
+  const safeMonthStr =
+    monthStr && typeof monthStr === 'string' && monthStr.includes('-')
+      ? monthStr
+      : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+  const monthTransactions = getTransactionsForMonth(safeTransactions, safeMonthStr);
 
   let totalIncome = 0;
   let totalExpenses = 0;
@@ -47,9 +58,9 @@ export function calculateMonthlySummary(
   const dailySpendingMap: Record<number, { expense: number; income: number }> = {};
 
   // Days in month
-  const [yearStr, monthNumStr] = monthStr.split('-');
-  const year = parseInt(yearStr, 10);
-  const monthIndex = parseInt(monthNumStr, 10) - 1;
+  const [yearStr, monthNumStr] = safeMonthStr.split('-');
+  const year = parseInt(yearStr, 10) || new Date().getFullYear();
+  const monthIndex = (parseInt(monthNumStr, 10) || 1) - 1;
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
 
   for (let d = 1; d <= daysInMonth; d++) {
@@ -57,25 +68,30 @@ export function calculateMonthlySummary(
   }
 
   for (const t of monthTransactions) {
+    if (!t) continue;
     const amount = Number(t.amount) || 0;
-    const day = parseInt(t.date.split('-')[2], 10);
+    const dateParts = (t.date || '').split('-');
+    const day = dateParts.length >= 3 ? parseInt(dateParts[2], 10) || 1 : 1;
 
     if (t.type === 'expense') {
       totalExpenses += amount;
-      if (!categorySpentMap[t.categoryId]) {
-        categorySpentMap[t.categoryId] = { spent: 0, count: 0 };
+      const catId = t.categoryId || 'cat_other';
+      if (!categorySpentMap[catId]) {
+        categorySpentMap[catId] = { spent: 0, count: 0 };
       }
-      categorySpentMap[t.categoryId].spent += amount;
-      categorySpentMap[t.categoryId].count += 1;
+      categorySpentMap[catId].spent += amount;
+      categorySpentMap[catId].count += 1;
 
-      if (dailySpendingMap[day]) {
-        dailySpendingMap[day].expense += amount;
+      if (!dailySpendingMap[day]) {
+        dailySpendingMap[day] = { expense: 0, income: 0 };
       }
+      dailySpendingMap[day].expense += amount;
     } else if (t.type === 'income') {
       totalIncome += amount;
-      if (dailySpendingMap[day]) {
-        dailySpendingMap[day].income += amount;
+      if (!dailySpendingMap[day]) {
+        dailySpendingMap[day] = { expense: 0, income: 0 };
       }
+      dailySpendingMap[day].income += amount;
     } else if (t.type === 'savings') {
       netSavings += amount;
     } else if (t.type === 'loan_repayment') {
@@ -86,20 +102,22 @@ export function calculateMonthlySummary(
 
   // Credit & Debit overall tracking
   let totalCredit = 0; // Money we owe or received on credit
-  let totalDebit = 0;  // Money owed to us
-  for (const cd of creditDebitRecords) {
+  let totalDebit = 0; // Money owed to us
+  for (const cd of safeCreditDebit) {
+    if (!cd) continue;
     if (cd.type === 'credit') {
-      totalCredit += cd.remainingAmount;
+      totalCredit += Number(cd.remainingAmount) || 0;
     } else {
-      totalDebit += cd.remainingAmount;
+      totalDebit += Number(cd.remainingAmount) || 0;
     }
   }
 
   // Loans overall tracking
   let outstandingLoans = 0;
-  for (const loan of loans) {
+  for (const loan of safeLoans) {
+    if (!loan) continue;
     if (loan.status !== 'paid') {
-      outstandingLoans += loan.remainingAmount;
+      outstandingLoans += Number(loan.remainingAmount) || 0;
     }
   }
 
@@ -113,8 +131,8 @@ export function calculateMonthlySummary(
   const isExceeded = budgetUsedPercentage > 100;
 
   // Build category summaries
-  const categorySummaries: CategorySummary[] = categories
-    .filter((c) => c.type === 'expense')
+  const categorySummaries: CategorySummary[] = safeCategories
+    .filter((c) => c && c.type === 'expense')
     .map((cat) => {
       const stats = categorySpentMap[cat.id] || { spent: 0, count: 0 };
       const catBudget = budget?.categoryBudgets?.[cat.id] || 0;
@@ -134,14 +152,14 @@ export function calculateMonthlySummary(
 
   // Build daily spending chart series
   const dailySpending = Object.entries(dailySpendingMap).map(([day, val]) => ({
-    date: `${monthStr}-${String(day).padStart(2, '0')}`,
+    date: `${safeMonthStr}-${String(day).padStart(2, '0')}`,
     day: parseInt(day, 10),
     expense: roundMoney(val.expense),
     income: roundMoney(val.income),
   }));
 
   return {
-    month: monthStr,
+    month: safeMonthStr,
     totalIncome: roundMoney(totalIncome),
     totalExpenses: roundMoney(totalExpenses),
     remainingBudget,
@@ -164,12 +182,16 @@ export function calculateMonthlySummary(
  * Generate Actionable Financial Insights
  */
 export function generateSmartInsights(
-  current: MonthlyFinancialSummary,
-  previous: MonthlyFinancialSummary | null,
-  savingsGoals: SavingsGoal[],
-  currency: CurrencyCode
+  current: MonthlyFinancialSummary | undefined,
+  previous: MonthlyFinancialSummary | null | undefined,
+  savingsGoals: SavingsGoal[] = [],
+  currency: CurrencyCode = 'PKR'
 ): SmartInsight[] {
   const insights: SmartInsight[] = [];
+  if (!current) return insights;
+
+  const safeGoals = Array.isArray(savingsGoals) ? savingsGoals : [];
+  const safeCategories = Array.isArray(current.categorySummaries) ? current.categorySummaries : [];
 
   // 1. Budget Usage Insight
   if (current.budgetLimit > 0) {
@@ -205,7 +227,7 @@ export function generateSmartInsights(
   }
 
   // 2. Top Category Spending Insight
-  const topSpentCat = current.categorySummaries.find((c) => c.spent > 0);
+  const topSpentCat = safeCategories.find((c) => c && c.spent > 0);
   if (topSpentCat && current.totalExpenses > 0) {
     const pctOfTotal = Math.round((topSpentCat.spent / current.totalExpenses) * 100);
     insights.push({
@@ -239,8 +261,8 @@ export function generateSmartInsights(
   }
 
   // 4. Savings Goal Progress Insight
-  if (savingsGoals.length > 0) {
-    const activeGoal = savingsGoals.find((g) => g.currentAmount < g.targetAmount) || savingsGoals[0];
+  if (safeGoals.length > 0) {
+    const activeGoal = safeGoals.find((g) => g && g.currentAmount < g.targetAmount) || safeGoals[0];
     if (activeGoal && activeGoal.targetAmount > 0) {
       const progress = Math.min(100, Math.round((activeGoal.currentAmount / activeGoal.targetAmount) * 100));
       insights.push({
