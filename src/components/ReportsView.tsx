@@ -54,25 +54,32 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 }) => {
   const [period, setPeriod] = useState<'this_month' | 'last_30_days' | 'this_year' | 'all_time'>('this_month');
 
+  const safeTransactions = Array.isArray(transactions) ? transactions : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeMonth = selectedMonth && typeof selectedMonth === 'string' && selectedMonth.includes('-')
+    ? selectedMonth
+    : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
   // Filter transactions according to selected period
   const filteredTransactions = useMemo(() => {
     const today = new Date();
-    return transactions.filter((t) => {
+    return safeTransactions.filter((t) => {
+      if (!t || !t.date) return false;
       const txDate = new Date(t.date);
       if (period === 'this_month') {
-        return t.date.startsWith(selectedMonth);
+        return t.date.startsWith(safeMonth);
       }
       if (period === 'last_30_days') {
         const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
         return txDate >= thirtyDaysAgo && txDate <= today;
       }
       if (period === 'this_year') {
-        const currentYear = selectedMonth.split('-')[0];
+        const currentYear = safeMonth.split('-')[0];
         return t.date.startsWith(currentYear);
       }
       return true; // all_time
     });
-  }, [transactions, period, selectedMonth]);
+  }, [safeTransactions, period, safeMonth]);
 
   // Calculations
   const reportTotals = useMemo(() => {
