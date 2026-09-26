@@ -9,14 +9,15 @@ import {
   User,
 } from 'firebase/auth';
 
-// User's provided Firebase configuration
+// Firebase web configuration is safe to expose in a frontend bundle. Values can
+// be overridden for forks/deployments with VITE_FIREBASE_* environment vars.
 const firebaseConfig = {
-  apiKey: "AIzaSyB2rDG5QrPuWilxD0DLKt4RH2hrj_oauYs",
-  authDomain: "aka-academy-d9003.firebaseapp.com",
-  projectId: "aka-academy-d9003",
-  storageBucket: "aka-academy-d9003.firebasestorage.app",
-  messagingSenderId: "348528938812",
-  appId: "1:348528938812:web:9361cc890a8c8e879d9839",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyB2rDG5QrPuWilxD0DLKt4RH2hrj_oauYs',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'aka-academy-d9003.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'aka-academy-d9003',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'aka-academy-d9003.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '348528938812',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:348528938812:web:9361cc890a8c8e879d9839',
 };
 
 // Initialize Firebase once

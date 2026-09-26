@@ -21,7 +21,7 @@ function githubPagesSpa(): Plugin {
 
 export default defineConfig(() => {
   return {
-    base: './',
+    base: '/Smart-Expense/',
     plugins: [react(), tailwindcss(), githubPagesSpa()],
     resolve: {
       alias: {

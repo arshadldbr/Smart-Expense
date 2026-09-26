@@ -456,10 +456,10 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
         }}
         profile={profile}
         selectedMonth={selectedMonth}
-        onToggleTheme={toggleTheme}
+        onToggleTheme={onToggleTheme}
         isDark={isDark}
         onSelectCurrency={(cur) => handleUpdateProfile({ defaultCurrency: cur, currency: cur })}
-        userEmail={user.email}
+        userEmail={user?.email || profile.email}
         onLogout={logout}
       />
 
@@ -577,15 +577,15 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
             profile={profile}
             categories={categories}
             isDark={isDark}
-            onToggleTheme={toggleTheme}
+            onToggleTheme={onToggleTheme}
             onUpdateProfile={handleUpdateProfile}
             onAddCategory={handleAddCategory}
             onDeleteCategory={handleDeleteCategory}
             onExportAllData={handleExportAllData}
             onImportAllData={handleImportAllData}
             onResetData={handleResetData}
-            authEmail={user.email}
-            userId={user.uid}
+            authEmail={user?.email || profile.email}
+            userId={user?.uid}
             onLogout={logout}
           />
         )}
@@ -637,10 +637,47 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
   );
 }
 
+function AppShell() {
+  const { user, loading } = useAuth();
+  const [isDark, setIsDark] = useState<boolean>(() => storageService.getTheme() === 'dark');
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [isDark]);
+
+  useEffect(() => {
+    if (user) {
+      setIsDark(storageService.getTheme() === 'dark');
+    }
+  }, [user]);
+
+  const toggleTheme = () => {
+    setIsDark((current) => {
+      const next = !current;
+      storageService.setTheme(next ? 'dark' : 'light');
+      return next;
+    });
+  };
+
+  return (
+    <>
+      {loading ? (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-emerald-600 dark:text-emerald-400">
+          <Loader2 className="w-8 h-8 animate-spin" aria-label="Loading authentication" />
+        </div>
+      ) : user ? (
+        <MainTrackerApp isDark={isDark} onToggleTheme={toggleTheme} />
+      ) : (
+        <AuthScreen isDark={isDark} onToggleTheme={toggleTheme} />
+      )}
+    </>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
-      <MainTrackerApp />
+      <AppShell />
     </AuthProvider>
   );
 }
