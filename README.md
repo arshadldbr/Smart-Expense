@@ -1,13 +1,20 @@
-# Smart Expense Tracker — GitHub Pages Fixed
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-This package is prepared to work when the repository is published directly from the branch root.
+# Run and deploy your AI Studio app
 
-## Deploy
-1. Extract this ZIP.
-2. Push all files to your GitHub repository.
-3. In GitHub Pages, select **Deploy from a branch**, choose your publishing branch (usually `main`) and the `/ (root)` folder.
-4. Open the Pages URL.
+This contains everything you need to run your app locally.
 
-The root `index.html` loads the included self-contained `deployed_bundle.js` with a relative path, so it works both at a root Pages site and at a repository Pages path.
+View your app in AI Studio: https://ai.studio/apps/a47c5bfd-c4c9-4db0-8808-f15dac929a36
 
-Firebase Email/Password authentication is already wired in the included bundle. In Firebase Authentication → Settings → Authorized domains, add the hostname of your GitHub Pages site (for example `aadldbr.github.io`) if it is not already present.
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
