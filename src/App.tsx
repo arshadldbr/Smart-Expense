@@ -456,7 +456,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
         }}
         profile={profile}
         selectedMonth={selectedMonth}
-        onToggleTheme={toggleTheme}
+        onToggleTheme={onToggleTheme}
         isDark={isDark}
         onSelectCurrency={(cur) => handleUpdateProfile({ defaultCurrency: cur, currency: cur })}
         userEmail={user.email}
@@ -577,7 +577,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
             profile={profile}
             categories={categories}
             isDark={isDark}
-            onToggleTheme={toggleTheme}
+            onToggleTheme={onToggleTheme}
             onUpdateProfile={handleUpdateProfile}
             onAddCategory={handleAddCategory}
             onDeleteCategory={handleDeleteCategory}
@@ -637,11 +637,57 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
   );
 }
 
+function AuthenticatedApp() {
+  const { user, loading } = useAuth();
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('smart-expense-theme');
+      if (saved === 'dark') return true;
+      if (saved === 'light') return false;
+      return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleTheme = () => {
+    setIsDark((current) => {
+      const next = !current;
+      try {
+        localStorage.setItem('smart-expense-theme', next ? 'dark' : 'light');
+      } catch {}
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+    document.body.classList.toggle('dark', isDark);
+  }, [isDark]);
+
+  if (loading) {
+    return (
+      <div className={isDark ? 'min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center' : 'min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center'}>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          <p className="text-sm font-medium">Loading your account...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen isDark={isDark} onToggleTheme={toggleTheme} />;
+  }
+
+  return <MainTrackerApp isDark={isDark} onToggleTheme={toggleTheme} />;
+}
+
 export default function App() {
   return (
-    <ErrorBoundary fallbackTitle="Smart Expense Tracker encountered an error">
+    <ErrorBoundary>
       <AuthProvider>
-        <MainTrackerApp />
+        <AuthenticatedApp />
       </AuthProvider>
     </ErrorBoundary>
   );
