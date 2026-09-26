@@ -36,17 +36,22 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   onUpdateBudget,
 }) => {
   const [isEditingTotal, setIsEditingTotal] = useState(false);
-  const [totalBudgetInput, setTotalBudgetInput] = useState(budget.totalBudget.toString());
+  const totalBudgetVal = budget?.totalBudget ?? 100000;
+  const [totalBudgetInput, setTotalBudgetInput] = useState(totalBudgetVal.toString());
   const [editingCategoryBudget, setEditingCategoryBudget] = useState<{
     categoryId: string;
     amount: string;
   } | null>(null);
 
-  const [year, month] = selectedMonth.split('-');
-  const monthDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+  const safeMonth = selectedMonth && typeof selectedMonth === 'string' && selectedMonth.includes('-')
+    ? selectedMonth
+    : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+  const [year, month] = safeMonth.split('-');
+  const monthDate = new Date(parseInt(year, 10) || new Date().getFullYear(), (parseInt(month, 10) || 1) - 1, 1);
   const formattedMonth = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  const expenseCategories = categories.filter((c) => c.type === 'expense');
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const expenseCategories = safeCategories.filter((c) => c && c.type === 'expense');
 
   const handleSaveTotalBudget = () => {
     const num = parseFloat(totalBudgetInput);
