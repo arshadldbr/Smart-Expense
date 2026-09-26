@@ -1,16 +1,13 @@
-# Smart Expense Tracker — GitHub Pages
+# Smart Expense Tracker — GitHub Pages Fixed
 
-This package is configured to deploy automatically to GitHub Pages when you push it to the repository's `main` branch.
+This package is prepared to work when the repository is published directly from the branch root.
 
 ## Deploy
-1. Create/use a GitHub repository.
-2. Push **all files in this package** to the `main` branch.
-3. GitHub Actions will install dependencies, build the React app, and publish `dist/` to GitHub Pages.
-4. In the repository, open **Settings → Pages** and make sure the source is **GitHub Actions**.
+1. Extract this ZIP.
+2. Push all files to your GitHub repository.
+3. In GitHub Pages, select **Deploy from a branch**, choose your publishing branch (usually `main`) and the `/ (root)` folder.
+4. Open the Pages URL.
 
-The Vite configuration automatically detects whether the repository is a normal project site (`https://USER.github.io/REPO/`) or a user site (`https://USER.github.io/`).
+The root `index.html` loads the included self-contained `deployed_bundle.js` with a relative path, so it works both at a root Pages site and at a repository Pages path.
 
-## Firebase authentication
-The app uses Firebase Email/Password Authentication. The existing Firebase web configuration is already included in `src/services/firebase.ts`. Firebase requires Email/Password to be enabled and the deployed GitHub Pages domain to be an authorized domain.
-
-The authentication flow has been hardened so the Firebase auth-state observer is the single source of truth after sign-up/sign-in, and a React error boundary now shows the actual runtime error instead of a white blank screen.
+Firebase Email/Password authentication is already wired in the included bundle. In Firebase Authentication → Settings → Authorized domains, add the hostname of your GitHub Pages site (for example `aadldbr.github.io`) if it is not already present.
