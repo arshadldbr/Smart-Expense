@@ -26,7 +26,7 @@ interface NavigationProps {
   activeTab: ViewTab;
   setActiveTab: (tab: ViewTab) => void;
   onOpenAddModal: () => void;
-  profile: UserProfile;
+  profile?: UserProfile;
   selectedMonth: string;
   onToggleTheme: () => void;
   isDark: boolean;
@@ -49,10 +49,15 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
-  // Format month for header
-  const [year, month] = selectedMonth.split('-');
-  const monthDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+  // Format month for header safely
+  const safeMonth =
+    selectedMonth && typeof selectedMonth === 'string' && selectedMonth.includes('-')
+      ? selectedMonth
+      : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+  const [year, month] = safeMonth.split('-');
+  const monthDate = new Date(parseInt(year, 10) || new Date().getFullYear(), (parseInt(month, 10) || 1) - 1, 1);
   const formattedMonth = monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const displayName = profile?.name || (userEmail ? userEmail.split('@')[0] : 'Expense Manager');
 
   const moreItems: { tab: ViewTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { tab: 'savings', label: 'Savings Goals', icon: PiggyBank },
@@ -89,7 +94,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-1.5">
-                <span>Welcome back, {profile.name}</span>
+                <span>Welcome back, {displayName}</span>
                 <span className="text-slate-300 dark:text-slate-700">•</span>
                 <span className="text-[11px]">
                   WhatsApp:{' '}
@@ -213,7 +218,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           <div className="flex items-center gap-2">
             <select
               id="header-currency-selector"
-              value={profile.defaultCurrency}
+              value={profile?.defaultCurrency || profile?.currency || 'PKR'}
               onChange={(e) => onSelectCurrency(e.target.value as CurrencyCode)}
               className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
               title="Change Display Currency"
@@ -393,7 +398,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     <UserIcon className="w-4 h-4 text-emerald-600 shrink-0" />
                     <div className="truncate">
                       <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                        {profile.name}
+                        {displayName}
                       </p>
                       {userEmail && (
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
