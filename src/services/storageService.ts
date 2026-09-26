@@ -29,29 +29,61 @@ const BASE_KEYS = {
 
 class StorageService {
   private currentUserId: string | null = null;
+  private memoryCache: Record<string, string> = {};
+
+  private safeGetItem(key: string): string | null {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const item = window.localStorage.getItem(key);
+        if (item !== null && item !== 'null' && item !== 'undefined') {
+          return item;
+        }
+      }
+    } catch (e) {
+      console.warn('localStorage getItem failed, checking memory cache:', e);
+    }
+    return this.memoryCache[key] ?? null;
+  }
+
+  private safeSetItem(key: string, value: string): void {
+    this.memoryCache[key] = value;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch (e) {
+      console.warn('localStorage setItem failed, persisted to memory cache only:', e);
+    }
+  }
 
   /**
    * Set active authenticated user and ensure baseline data exists
    */
   initForUser(userId: string | null, email?: string | null, displayName?: string | null): void {
-    this.currentUserId = userId;
-    if (userId) {
-      const existingProfile = localStorage.getItem(this.getKey(BASE_KEYS.PROFILE));
-      if (!existingProfile) {
-        // Initialize user with their name and email
-        const initialProfile: UserProfile = {
-          ...INITIAL_USER_PROFILE,
-          name: displayName || (email ? email.split('@')[0] : 'Expense Manager'),
-          email: email || '',
-        };
-        this.saveProfile(initialProfile);
-        this.saveTransactions(INITIAL_TRANSACTIONS);
-        this.saveCategories(DEFAULT_CATEGORIES);
-        this.saveBudgets(INITIAL_BUDGETS);
-        this.saveSavingsGoals(INITIAL_SAVINGS_GOALS);
-        this.saveCreditDebitRecords(INITIAL_CREDIT_DEBIT);
-        this.saveLoans(INITIAL_LOANS);
+    try {
+      this.currentUserId = userId;
+      if (userId) {
+        const existingProfile = this.safeGetItem(this.getKey(BASE_KEYS.PROFILE));
+        if (!existingProfile) {
+          // Initialize user with their name and email
+          const initialProfile: UserProfile = {
+            ...INITIAL_USER_PROFILE,
+            name: displayName || (email ? email.split('@')[0] : 'Expense Manager'),
+            email: email || '',
+            defaultCurrency: 'PKR',
+            currency: 'PKR',
+          };
+          this.saveProfile(initialProfile);
+          this.saveTransactions(INITIAL_TRANSACTIONS);
+          this.saveCategories(DEFAULT_CATEGORIES);
+          this.saveBudgets(INITIAL_BUDGETS);
+          this.saveSavingsGoals(INITIAL_SAVINGS_GOALS);
+          this.saveCreditDebitRecords(INITIAL_CREDIT_DEBIT);
+          this.saveLoans(INITIAL_LOANS);
+        }
       }
+    } catch (e) {
+      console.error('Error during initForUser in StorageService:', e);
     }
   }
 
@@ -62,29 +94,57 @@ class StorageService {
   // --- Profile ---
   getProfile(): UserProfile {
     try {
-      const data = localStorage.getItem(this.getKey(BASE_KEYS.PROFILE));
-      return data ? JSON.parse(data) : INITIAL_USER_PROFILE;
+      const data = this.safeGetItem(this.getKey(BASE_KEYS.PROFILE));
+      if (!data) return { ...INITIAL_USER_PROFILE };
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          ...INITIAL_USER_PROFILE,
+          ...parsed,
+          defaultCurrency: parsed.defaultCurrency || parsed.currency || INITIAL_USER_PROFILE.defaultCurrency || 'PKR',
+          currency: parsed.currency || parsed.defaultCurrency || INITIAL_USER_PROFILE.defaultCurrency || 'PKR',
+          name: parsed.name || INITIAL_USER_PROFILE.name || 'Expense Manager',
+        };
+      }
+      return { ...INITIAL_USER_PROFILE };
     } catch {
-      return INITIAL_USER_PROFILE;
+      return { ...INITIAL_USER_PROFILE };
     }
   }
 
   saveProfile(profile: UserProfile): void {
-    localStorage.setItem(this.getKey(BASE_KEYS.PROFILE), JSON.stringify(profile));
+    try {
+      const safeProfile: UserProfile = {
+        ...INITIAL_USER_PROFILE,
+        ...profile,
+        defaultCurrency: profile.defaultCurrency || profile.currency || 'PKR',
+        currency: profile.currency || profile.defaultCurrency || 'PKR',
+      };
+      this.safeSetItem(this.getKey(BASE_KEYS.PROFILE), JSON.stringify(safeProfile));
+    } catch (e) {
+      console.warn('Failed to save profile:', e);
+    }
   }
 
   // --- Transactions ---
   getTransactions(): Transaction[] {
     try {
-      const data = localStorage.getItem(this.getKey(BASE_KEYS.TRANSACTIONS));
-      return data ? JSON.parse(data) : INITIAL_TRANSACTIONS;
+      const data = this.safeGetItem(this.getKey(BASE_KEYS.TRANSACTIONS));
+      if (!data) return [...INITIAL_TRANSACTIONS];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [...INITIAL_TRANSACTIONS];
     } catch {
-      return INITIAL_TRANSACTIONS;
+      return [...INITIAL_TRANSACTIONS];
     }
   }
 
   saveTransactions(transactions: Transaction[]): void {
-    localStorage.setItem(this.getKey(BASE_KEYS.TRANSACTIONS), JSON.stringify(transactions));
+    try {
+      const safeList = Array.isArray(transactions) ? transactions : [];
+      this.safeSetItem(this.getKey(BASE_KEYS.TRANSACTIONS), JSON.stringify(safeList));
+    } catch (e) {
+      console.warn('Failed to save transactions:', e);
+    }
   }
 
   addTransaction(tx: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>): Transaction {
@@ -129,15 +189,22 @@ class StorageService {
   // --- Categories ---
   getCategories(): Category[] {
     try {
-      const data = localStorage.getItem(this.getKey(BASE_KEYS.CATEGORIES));
-      return data ? JSON.parse(data) : DEFAULT_CATEGORIES;
+      const data = this.safeGetItem(this.getKey(BASE_KEYS.CATEGORIES));
+      if (!data) return [...DEFAULT_CATEGORIES];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...DEFAULT_CATEGORIES];
     } catch {
-      return DEFAULT_CATEGORIES;
+      return [...DEFAULT_CATEGORIES];
     }
   }
 
   saveCategories(categories: Category[]): void {
-    localStorage.setItem(this.getKey(BASE_KEYS.CATEGORIES), JSON.stringify(categories));
+    try {
+      const safeList = Array.isArray(categories) && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+      this.safeSetItem(this.getKey(BASE_KEYS.CATEGORIES), JSON.stringify(safeList));
+    } catch (e) {
+      console.warn('Failed to save categories:', e);
+    }
   }
 
   addCategory(category: Omit<Category, 'id' | 'isDefault'>): Category {
@@ -174,15 +241,22 @@ class StorageService {
   // --- Budgets ---
   getBudgets(): Record<string, MonthlyBudget> {
     try {
-      const data = localStorage.getItem(this.getKey(BASE_KEYS.BUDGETS));
-      return data ? JSON.parse(data) : INITIAL_BUDGETS;
+      const data = this.safeGetItem(this.getKey(BASE_KEYS.BUDGETS));
+      if (!data) return { ...INITIAL_BUDGETS };
+      const parsed = JSON.parse(data);
+      return parsed && typeof parsed === 'object' ? parsed : { ...INITIAL_BUDGETS };
     } catch {
-      return INITIAL_BUDGETS;
+      return { ...INITIAL_BUDGETS };
     }
   }
 
   saveBudgets(budgets: Record<string, MonthlyBudget>): void {
-    localStorage.setItem(this.getKey(BASE_KEYS.BUDGETS), JSON.stringify(budgets));
+    try {
+      const safeBudgets = budgets && typeof budgets === 'object' ? budgets : INITIAL_BUDGETS;
+      this.safeSetItem(this.getKey(BASE_KEYS.BUDGETS), JSON.stringify(safeBudgets));
+    } catch (e) {
+      console.warn('Failed to save budgets:', e);
+    }
   }
 
   getBudgetForMonth(monthStr: string, defaultAmount: number = 100000): MonthlyBudget {
@@ -224,15 +298,22 @@ class StorageService {
   // --- Savings Goals ---
   getSavingsGoals(): SavingsGoal[] {
     try {
-      const data = localStorage.getItem(this.getKey(BASE_KEYS.SAVINGS));
-      return data ? JSON.parse(data) : INITIAL_SAVINGS_GOALS;
+      const data = this.safeGetItem(this.getKey(BASE_KEYS.SAVINGS));
+      if (!data) return [...INITIAL_SAVINGS_GOALS];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [...INITIAL_SAVINGS_GOALS];
     } catch {
-      return INITIAL_SAVINGS_GOALS;
+      return [...INITIAL_SAVINGS_GOALS];
     }
   }
 
   saveSavingsGoals(goals: SavingsGoal[]): void {
-    localStorage.setItem(this.getKey(BASE_KEYS.SAVINGS), JSON.stringify(goals));
+    try {
+      const safeList = Array.isArray(goals) ? goals : [];
+      this.safeSetItem(this.getKey(BASE_KEYS.SAVINGS), JSON.stringify(safeList));
+    } catch (e) {
+      console.warn('Failed to save savings goals:', e);
+    }
   }
 
   addSavingsGoal(goal: Omit<SavingsGoal, 'id' | 'history' | 'createdAt'>): SavingsGoal {
@@ -304,15 +385,22 @@ class StorageService {
   // --- Credit & Debit ---
   getCreditDebitRecords(): CreditDebitRecord[] {
     try {
-      const data = localStorage.getItem(this.getKey(BASE_KEYS.CREDIT_DEBIT));
-      return data ? JSON.parse(data) : INITIAL_CREDIT_DEBIT;
+      const data = this.safeGetItem(this.getKey(BASE_KEYS.CREDIT_DEBIT));
+      if (!data) return [...INITIAL_CREDIT_DEBIT];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [...INITIAL_CREDIT_DEBIT];
     } catch {
-      return INITIAL_CREDIT_DEBIT;
+      return [...INITIAL_CREDIT_DEBIT];
     }
   }
 
   saveCreditDebitRecords(records: CreditDebitRecord[]): void {
-    localStorage.setItem(this.getKey(BASE_KEYS.CREDIT_DEBIT), JSON.stringify(records));
+    try {
+      const safeList = Array.isArray(records) ? records : [];
+      this.safeSetItem(this.getKey(BASE_KEYS.CREDIT_DEBIT), JSON.stringify(safeList));
+    } catch (e) {
+      console.warn('Failed to save credit/debit records:', e);
+    }
   }
 
   addCreditDebitRecord(
@@ -375,15 +463,22 @@ class StorageService {
   // --- Loans ---
   getLoans(): Loan[] {
     try {
-      const data = localStorage.getItem(this.getKey(BASE_KEYS.LOANS));
-      return data ? JSON.parse(data) : INITIAL_LOANS;
+      const data = this.safeGetItem(this.getKey(BASE_KEYS.LOANS));
+      if (!data) return [...INITIAL_LOANS];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [...INITIAL_LOANS];
     } catch {
-      return INITIAL_LOANS;
+      return [...INITIAL_LOANS];
     }
   }
 
   saveLoans(loans: Loan[]): void {
-    localStorage.setItem(this.getKey(BASE_KEYS.LOANS), JSON.stringify(loans));
+    try {
+      const safeList = Array.isArray(loans) ? loans : [];
+      this.safeSetItem(this.getKey(BASE_KEYS.LOANS), JSON.stringify(safeList));
+    } catch (e) {
+      console.warn('Failed to save loans:', e);
+    }
   }
 
   addLoan(loan: Omit<Loan, 'id' | 'paidAmount' | 'remainingAmount' | 'status' | 'repayments'>): Loan {
