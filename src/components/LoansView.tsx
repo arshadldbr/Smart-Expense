@@ -50,9 +50,10 @@ export const LoansView: React.FC<LoansViewProps> = ({
   const [notes, setNotes] = useState('');
 
   // Overview metrics
-  const totalPrincipal = loans.reduce((sum, l) => sum + l.principalAmount, 0);
-  const totalPaid = loans.reduce((sum, l) => sum + l.paidAmount, 0);
-  const totalRemaining = loans.reduce((sum, l) => sum + l.remainingAmount, 0);
+  const safeLoans = Array.isArray(loans) ? loans : [];
+  const totalPrincipal = safeLoans.reduce((sum, l) => sum + (Number(l?.principalAmount) || 0), 0);
+  const totalPaid = safeLoans.reduce((sum, l) => sum + (Number(l?.paidAmount) || 0), 0);
+  const totalRemaining = safeLoans.reduce((sum, l) => sum + (Number(l?.remainingAmount) || 0), 0);
   const overallProgress = totalPrincipal > 0 ? Math.round((totalPaid / totalPrincipal) * 100) : 0;
 
   const handleCreateLoan = (e: React.FormEvent) => {
@@ -194,9 +195,9 @@ export const LoansView: React.FC<LoansViewProps> = ({
       </div>
 
       {/* Loans Grid */}
-      {loans.length > 0 ? (
+      {safeLoans.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {loans.map((loan) => {
+          {safeLoans.map((loan) => {
             const progress = loan.principalAmount > 0 ? Math.min(100, Math.round((loan.paidAmount / loan.principalAmount) * 100)) : 0;
             const isPaid = loan.status === 'paid' || loan.remainingAmount === 0;
 
