@@ -28,8 +28,13 @@ import { CalendarView } from './components/CalendarView';
 import { ReportsView } from './components/ReportsView';
 import { SettingsView } from './components/SettingsView';
 import { AddTransactionModal } from './components/AddTransactionModal';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthScreen } from './components/AuthScreen';
+import { Loader2 } from 'lucide-react';
 
-export default function App() {
+function MainTrackerApp() {
+  const { user, loading, logout } = useAuth();
+
   // Central application state backed by local storage
   const [profile, setProfile] = useState<UserProfile>(() => storageService.getProfile());
   const [categories, setCategories] = useState<Category[]>(() => storageService.getCategories());
@@ -38,6 +43,19 @@ export default function App() {
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(() => storageService.getSavingsGoals());
   const [creditDebitRecords, setCreditDebitRecords] = useState<CreditDebitRecord[]>(() => storageService.getCreditDebitRecords());
   const [loans, setLoans] = useState<Loan[]>(() => storageService.getLoans());
+
+  // Reload user-scoped data whenever authenticated user changes
+  useEffect(() => {
+    if (user) {
+      setProfile(storageService.getProfile());
+      setCategories(storageService.getCategories());
+      setTransactions(storageService.getTransactions());
+      setBudgets(storageService.getBudgets());
+      setSavingsGoals(storageService.getSavingsGoals());
+      setCreditDebitRecords(storageService.getCreditDebitRecords());
+      setLoans(storageService.getLoans());
+    }
+  }, [user]);
 
   // Navigation & Theme
   const [activeTab, setActiveTab] = useState<ViewTab>('dashboard');
@@ -69,6 +87,26 @@ export default function App() {
   }, [isDark]);
 
   const toggleTheme = () => setIsDark((prev) => !prev);
+
+  // Authentication Loading State
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-xl text-2xl font-bold mb-4 animate-bounce">
+          ₨
+        </div>
+        <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400">
+          <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+          <span>Verifying authentication...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is not authenticated, show the Authentication screen
+  if (!user) {
+    return <AuthScreen isDark={isDark} onToggleTheme={toggleTheme} />;
+  }
 
   const activeCurrency: CurrencyCode = profile.currency || profile.defaultCurrency || 'PKR';
 
@@ -431,6 +469,8 @@ export default function App() {
         onToggleTheme={toggleTheme}
         isDark={isDark}
         onSelectCurrency={(cur) => handleUpdateProfile({ defaultCurrency: cur, currency: cur })}
+        userEmail={user.email}
+        onLogout={logout}
       />
 
       {/* Main Content Viewport */}
@@ -554,6 +594,9 @@ export default function App() {
             onExportAllData={handleExportAllData}
             onImportAllData={handleImportAllData}
             onResetData={handleResetData}
+            authEmail={user.email}
+            userId={user.uid}
+            onLogout={logout}
           />
         )}
       </main>
@@ -601,5 +644,13 @@ export default function App() {
         editingTransaction={editingTransaction}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainTrackerApp />
+    </AuthProvider>
   );
 }

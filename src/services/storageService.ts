@@ -17,7 +17,7 @@ import {
   INITIAL_TRANSACTIONS,
 } from './seedData';
 
-const KEYS = {
+const BASE_KEYS = {
   PROFILE: 'set_profile_v1',
   TRANSACTIONS: 'set_transactions_v1',
   CATEGORIES: 'set_categories_v1',
@@ -28,10 +28,41 @@ const KEYS = {
 };
 
 class StorageService {
+  private currentUserId: string | null = null;
+
+  /**
+   * Set active authenticated user and ensure baseline data exists
+   */
+  initForUser(userId: string | null, email?: string | null, displayName?: string | null): void {
+    this.currentUserId = userId;
+    if (userId) {
+      const existingProfile = localStorage.getItem(this.getKey(BASE_KEYS.PROFILE));
+      if (!existingProfile) {
+        // Initialize user with their name and email
+        const initialProfile: UserProfile = {
+          ...INITIAL_USER_PROFILE,
+          name: displayName || (email ? email.split('@')[0] : 'Expense Manager'),
+          email: email || '',
+        };
+        this.saveProfile(initialProfile);
+        this.saveTransactions(INITIAL_TRANSACTIONS);
+        this.saveCategories(DEFAULT_CATEGORIES);
+        this.saveBudgets(INITIAL_BUDGETS);
+        this.saveSavingsGoals(INITIAL_SAVINGS_GOALS);
+        this.saveCreditDebitRecords(INITIAL_CREDIT_DEBIT);
+        this.saveLoans(INITIAL_LOANS);
+      }
+    }
+  }
+
+  private getKey(baseKey: string): string {
+    return this.currentUserId ? `${baseKey}_${this.currentUserId}` : baseKey;
+  }
+
   // --- Profile ---
   getProfile(): UserProfile {
     try {
-      const data = localStorage.getItem(KEYS.PROFILE);
+      const data = localStorage.getItem(this.getKey(BASE_KEYS.PROFILE));
       return data ? JSON.parse(data) : INITIAL_USER_PROFILE;
     } catch {
       return INITIAL_USER_PROFILE;
@@ -39,13 +70,13 @@ class StorageService {
   }
 
   saveProfile(profile: UserProfile): void {
-    localStorage.setItem(KEYS.PROFILE, JSON.stringify(profile));
+    localStorage.setItem(this.getKey(BASE_KEYS.PROFILE), JSON.stringify(profile));
   }
 
   // --- Transactions ---
   getTransactions(): Transaction[] {
     try {
-      const data = localStorage.getItem(KEYS.TRANSACTIONS);
+      const data = localStorage.getItem(this.getKey(BASE_KEYS.TRANSACTIONS));
       return data ? JSON.parse(data) : INITIAL_TRANSACTIONS;
     } catch {
       return INITIAL_TRANSACTIONS;
@@ -53,7 +84,7 @@ class StorageService {
   }
 
   saveTransactions(transactions: Transaction[]): void {
-    localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(transactions));
+    localStorage.setItem(this.getKey(BASE_KEYS.TRANSACTIONS), JSON.stringify(transactions));
   }
 
   addTransaction(tx: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>): Transaction {
@@ -98,7 +129,7 @@ class StorageService {
   // --- Categories ---
   getCategories(): Category[] {
     try {
-      const data = localStorage.getItem(KEYS.CATEGORIES);
+      const data = localStorage.getItem(this.getKey(BASE_KEYS.CATEGORIES));
       return data ? JSON.parse(data) : DEFAULT_CATEGORIES;
     } catch {
       return DEFAULT_CATEGORIES;
@@ -106,7 +137,7 @@ class StorageService {
   }
 
   saveCategories(categories: Category[]): void {
-    localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(categories));
+    localStorage.setItem(this.getKey(BASE_KEYS.CATEGORIES), JSON.stringify(categories));
   }
 
   addCategory(category: Omit<Category, 'id' | 'isDefault'>): Category {
@@ -143,7 +174,7 @@ class StorageService {
   // --- Budgets ---
   getBudgets(): Record<string, MonthlyBudget> {
     try {
-      const data = localStorage.getItem(KEYS.BUDGETS);
+      const data = localStorage.getItem(this.getKey(BASE_KEYS.BUDGETS));
       return data ? JSON.parse(data) : INITIAL_BUDGETS;
     } catch {
       return INITIAL_BUDGETS;
@@ -151,7 +182,7 @@ class StorageService {
   }
 
   saveBudgets(budgets: Record<string, MonthlyBudget>): void {
-    localStorage.setItem(KEYS.BUDGETS, JSON.stringify(budgets));
+    localStorage.setItem(this.getKey(BASE_KEYS.BUDGETS), JSON.stringify(budgets));
   }
 
   getBudgetForMonth(monthStr: string, defaultAmount: number = 100000): MonthlyBudget {
@@ -193,7 +224,7 @@ class StorageService {
   // --- Savings Goals ---
   getSavingsGoals(): SavingsGoal[] {
     try {
-      const data = localStorage.getItem(KEYS.SAVINGS);
+      const data = localStorage.getItem(this.getKey(BASE_KEYS.SAVINGS));
       return data ? JSON.parse(data) : INITIAL_SAVINGS_GOALS;
     } catch {
       return INITIAL_SAVINGS_GOALS;
@@ -201,7 +232,7 @@ class StorageService {
   }
 
   saveSavingsGoals(goals: SavingsGoal[]): void {
-    localStorage.setItem(KEYS.SAVINGS, JSON.stringify(goals));
+    localStorage.setItem(this.getKey(BASE_KEYS.SAVINGS), JSON.stringify(goals));
   }
 
   addSavingsGoal(goal: Omit<SavingsGoal, 'id' | 'history' | 'createdAt'>): SavingsGoal {
@@ -273,7 +304,7 @@ class StorageService {
   // --- Credit & Debit ---
   getCreditDebitRecords(): CreditDebitRecord[] {
     try {
-      const data = localStorage.getItem(KEYS.CREDIT_DEBIT);
+      const data = localStorage.getItem(this.getKey(BASE_KEYS.CREDIT_DEBIT));
       return data ? JSON.parse(data) : INITIAL_CREDIT_DEBIT;
     } catch {
       return INITIAL_CREDIT_DEBIT;
@@ -281,7 +312,7 @@ class StorageService {
   }
 
   saveCreditDebitRecords(records: CreditDebitRecord[]): void {
-    localStorage.setItem(KEYS.CREDIT_DEBIT, JSON.stringify(records));
+    localStorage.setItem(this.getKey(BASE_KEYS.CREDIT_DEBIT), JSON.stringify(records));
   }
 
   addCreditDebitRecord(
@@ -344,7 +375,7 @@ class StorageService {
   // --- Loans ---
   getLoans(): Loan[] {
     try {
-      const data = localStorage.getItem(KEYS.LOANS);
+      const data = localStorage.getItem(this.getKey(BASE_KEYS.LOANS));
       return data ? JSON.parse(data) : INITIAL_LOANS;
     } catch {
       return INITIAL_LOANS;
@@ -352,7 +383,7 @@ class StorageService {
   }
 
   saveLoans(loans: Loan[]): void {
-    localStorage.setItem(KEYS.LOANS, JSON.stringify(loans));
+    localStorage.setItem(this.getKey(BASE_KEYS.LOANS), JSON.stringify(loans));
   }
 
   addLoan(loan: Omit<Loan, 'id' | 'paidAmount' | 'remainingAmount' | 'status' | 'repayments'>): Loan {

@@ -14,6 +14,8 @@ import {
   Check,
   AlertCircle,
   FolderPlus,
+  ShieldCheck,
+  LogOut,
 } from 'lucide-react';
 import { UserProfile, Category, CurrencyCode } from '../types';
 import { SUPPORTED_CURRENCIES } from '../constants/currencies';
@@ -30,6 +32,9 @@ interface SettingsViewProps {
   onExportAllData: () => void;
   onImportAllData: (jsonData: string) => boolean;
   onResetData: () => void;
+  authEmail?: string | null;
+  userId?: string | null;
+  onLogout?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -43,6 +48,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onExportAllData,
   onImportAllData,
   onResetData,
+  authEmail,
+  userId,
+  onLogout,
 }) => {
   const [userName, setUserName] = useState(profile.name);
   const [userEmail, setUserEmail] = useState(profile.email || '');
@@ -118,6 +126,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Manage identity credentials, currency preferences, categories, and system backups
         </p>
+      </div>
+
+      {/* Account & Firebase Authentication Card */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Account & Authentication</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  Firebase Protected
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Logged in as <strong className="font-semibold text-slate-700 dark:text-slate-300">{authEmail || profile.name}</strong>
+              </p>
+            </div>
+          </div>
+
+          {onLogout && (
+            <button
+              id="settings-logout-btn"
+              onClick={onLogout}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out of Tracker</span>
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <span className="text-[11px] font-semibold text-slate-400 block mb-0.5">AUTHENTICATED EMAIL</span>
+            <span className="font-medium text-slate-800 dark:text-slate-200 truncate block">
+              {authEmail || 'Not available'}
+            </span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <span className="text-[11px] font-semibold text-slate-400 block mb-0.5">ACCOUNT ID (UID)</span>
+            <span className="font-mono text-[11px] text-slate-600 dark:text-slate-400 truncate block">
+              {userId || 'Firebase Session'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* User Profile Form */}
