@@ -45,8 +45,9 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
   const [newGoalNotes, setNewGoalNotes] = useState('');
 
   // Calculations across all goals
-  const totalTarget = savingsGoals.reduce((sum, g) => sum + g.targetAmount, 0);
-  const totalSaved = savingsGoals.reduce((sum, g) => sum + g.currentAmount, 0);
+  const safeGoals = Array.isArray(savingsGoals) ? savingsGoals : [];
+  const totalTarget = safeGoals.reduce((sum, g) => sum + (Number(g?.targetAmount) || 0), 0);
+  const totalSaved = safeGoals.reduce((sum, g) => sum + (Number(g?.currentAmount) || 0), 0);
   const overallProgress = totalTarget > 0 ? Math.round((totalSaved / totalTarget) * 100) : 0;
 
   const handleCreateGoal = (e: React.FormEvent) => {
@@ -133,7 +134,7 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
               {formatMoney(totalSaved, currency)}
             </div>
             <p className="text-xs text-indigo-300 mt-0.5">
-              Across {savingsGoals.length} active financial targets
+              Across {safeGoals.length} active financial targets
             </p>
           </div>
 
@@ -160,9 +161,9 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
       </div>
 
       {/* Goals Grid */}
-      {savingsGoals.length > 0 ? (
+      {safeGoals.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {savingsGoals.map((goal) => {
+          {safeGoals.map((goal) => {
             const progress = goal.targetAmount > 0 ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)) : 0;
             const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
             const isCompleted = goal.currentAmount >= goal.targetAmount;
