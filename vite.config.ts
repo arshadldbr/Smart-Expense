@@ -20,8 +20,17 @@ function githubPagesSpa(): Plugin {
 }
 
 export default defineConfig(() => {
+  // GitHub Pages can host either a project site (/repo-name/) or a user site (/).
+  // Detect the repository automatically during Actions builds so the same package
+  // can be pushed to any GitHub repository without manually changing the base path.
+  const repository = process.env.GITHUB_REPOSITORY?.split('/')[1] || '';
+  const isUserSite = repository.endsWith('.github.io');
+  const base = process.env.GITHUB_ACTIONS
+    ? (isUserSite ? '/' : `/${repository || 'Smart-Expense'}/`)
+    : '/';
+
   return {
-    base: '/Smart-Expense/',
+    base,
     plugins: [react(), tailwindcss(), githubPagesSpa()],
     resolve: {
       alias: {
