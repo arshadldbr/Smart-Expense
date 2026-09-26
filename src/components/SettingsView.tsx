@@ -52,9 +52,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   userId,
   onLogout,
 }) => {
-  const [userName, setUserName] = useState(profile.name);
-  const [userEmail, setUserEmail] = useState(profile.email || '');
-  const [currency, setCurrency] = useState<CurrencyCode>(profile.currency || profile.defaultCurrency || 'PKR');
+  const [userName, setUserName] = useState(profile?.name || (authEmail ? authEmail.split('@')[0] : 'Expense Manager'));
+  const [userEmail, setUserEmail] = useState(profile?.email || authEmail || '');
+  const [currency, setCurrency] = useState<CurrencyCode>(profile?.currency || profile?.defaultCurrency || 'PKR');
   const [profileSaved, setProfileSaved] = useState(false);
 
   // New Category State
