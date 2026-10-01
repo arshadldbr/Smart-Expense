@@ -122,14 +122,9 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     }
     return {
       id: `budget_${selectedMonth || 'current'}`,
-      month: selectedMonth || '2026-09',
-      totalBudget: profile?.defaultMonthlyBudget || 100000,
-      categoryBudgets: {
-        cat_food: 20000,
-        cat_transport: 10000,
-        cat_bills: 15000,
-        cat_shopping: 12000,
-      },
+      month: selectedMonth,
+      totalBudget: profile?.defaultMonthlyBudget || 0,
+      categoryBudgets: {},
       warningThresholds: {
         warn75: true,
         warn90: true,
@@ -144,8 +139,8 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     }
     return {
       id: `budget_${previousMonth || 'previous'}`,
-      month: previousMonth || '2026-08',
-      totalBudget: profile?.defaultMonthlyBudget || 100000,
+      month: previousMonth,
+      totalBudget: profile?.defaultMonthlyBudget || 0,
       categoryBudgets: {},
       warningThresholds: {
         warn75: true,
@@ -164,7 +159,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
       creditDebitRecords || [],
       loans || [],
       savingsGoals || [],
-      selectedMonth || '2026-09'
+      selectedMonth
     );
   }, [transactions, currentBudget, categories, creditDebitRecords, loans, savingsGoals, selectedMonth]);
 
@@ -176,7 +171,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
       creditDebitRecords || [],
       loans || [],
       savingsGoals || [],
-      previousMonth || '2026-08'
+      previousMonth
     );
   }, [transactions, previousBudget, categories, creditDebitRecords, loans, savingsGoals, previousMonth]);
 
@@ -430,10 +425,10 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
   const handleResetData = () => {
     if (
       window.confirm(
-        'Reset all financial data back to the demo showcase set? Any custom entries will be restored to default.'
+        'Reset all financial data to the empty state? This will delete your saved financial entries.'
       )
     ) {
-      storageService.resetToSampleData();
+      storageService.resetToEmptyData();
       setProfile(storageService.getProfile());
       setCategories(storageService.getCategories());
       setTransactions(storageService.getTransactions());

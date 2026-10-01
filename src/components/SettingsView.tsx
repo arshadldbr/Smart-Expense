@@ -417,7 +417,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 text-xs font-semibold transition-colors ml-auto"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset to Demo Sample Data</span>
+            <span>Reset to Empty State</span>
           </button>
         </div>
       </div>

@@ -36,7 +36,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   onUpdateBudget,
 }) => {
   const [isEditingTotal, setIsEditingTotal] = useState(false);
-  const totalBudgetVal = budget?.totalBudget ?? 100000;
+  const totalBudgetVal = budget?.totalBudget ?? 0;
   const [totalBudgetInput, setTotalBudgetInput] = useState(totalBudgetVal.toString());
   const [editingCategoryBudget, setEditingCategoryBudget] = useState<{
     categoryId: string;

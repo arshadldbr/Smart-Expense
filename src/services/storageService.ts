@@ -74,12 +74,6 @@ class StorageService {
             currency: 'PKR',
           };
           this.saveProfile(initialProfile);
-          this.saveTransactions(INITIAL_TRANSACTIONS);
-          this.saveCategories(DEFAULT_CATEGORIES);
-          this.saveBudgets(INITIAL_BUDGETS);
-          this.saveSavingsGoals(INITIAL_SAVINGS_GOALS);
-          this.saveCreditDebitRecords(INITIAL_CREDIT_DEBIT);
-          this.saveLoans(INITIAL_LOANS);
         }
       }
     } catch (e) {
@@ -259,7 +253,7 @@ class StorageService {
     }
   }
 
-  getBudgetForMonth(monthStr: string, defaultAmount: number = 100000): MonthlyBudget {
+  getBudgetForMonth(monthStr: string, defaultAmount: number = 0): MonthlyBudget {
     const budgets = this.getBudgets();
     if (budgets[monthStr]) {
       return budgets[monthStr];
@@ -282,7 +276,7 @@ class StorageService {
     const current = budgets[monthStr] || {
       id: `budget_${monthStr.replace('-', '_')}`,
       month: monthStr,
-      totalBudget: 100000,
+      totalBudget: 0,
       categoryBudgets: {},
       warningThresholds: { warn75: true, warn90: true, warn100: true },
     };
@@ -577,10 +571,6 @@ class StorageService {
     return this.importAllData(jsonString);
   }
 
-  resetToSeedData(): void {
-    this.resetToSampleData();
-  }
-
   getTheme(): 'light' | 'dark' {
     const profile = this.getProfile();
     return profile.theme === 'dark' ? 'dark' : 'light';
@@ -592,14 +582,14 @@ class StorageService {
     this.saveProfile(profile);
   }
 
-  resetToSampleData(): void {
-    this.saveProfile(INITIAL_USER_PROFILE);
-    this.saveTransactions(INITIAL_TRANSACTIONS);
+  resetToEmptyData(): void {
+    this.saveProfile({ ...INITIAL_USER_PROFILE, onboarded: false });
+    this.saveTransactions([]);
     this.saveCategories(DEFAULT_CATEGORIES);
-    this.saveBudgets(INITIAL_BUDGETS);
-    this.saveSavingsGoals(INITIAL_SAVINGS_GOALS);
-    this.saveCreditDebitRecords(INITIAL_CREDIT_DEBIT);
-    this.saveLoans(INITIAL_LOANS);
+    this.saveBudgets({});
+    this.saveSavingsGoals([]);
+    this.saveCreditDebitRecords([]);
+    this.saveLoans([]);
   }
 
   clearAllData(): void {
