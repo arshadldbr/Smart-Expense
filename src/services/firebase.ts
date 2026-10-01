@@ -8,6 +8,7 @@ import {
   updateProfile,
   User,
 } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 // Firebase web configuration is safe to expose in a frontend bundle. Values can
 // be overridden for forks/deployments with VITE_FIREBASE_* environment vars.
@@ -23,6 +24,7 @@ const firebaseConfig = {
 // Initialize Firebase once
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getFirestore(app);
 
 /**
  * Register a new user with Email and Password

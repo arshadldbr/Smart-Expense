@@ -16,6 +16,7 @@ import {
   INITIAL_LOANS,
   INITIAL_TRANSACTIONS,
 } from './seedData';
+import type { PartialTrackerData, TrackerData, TrackerDataSources } from './firestoreDataModel';
 
 const BASE_KEYS = {
   PROFILE: 'set_profile_v1',
@@ -26,6 +27,8 @@ const BASE_KEYS = {
   CREDIT_DEBIT: 'set_credit_debit_v1',
   LOANS: 'set_loans_v1',
 };
+
+const LEGACY_OWNER_KEY = 'smart_expense_legacy_owner_uid_v1';
 
 class StorageService {
   private currentUserId: string | null = null;
@@ -83,6 +86,10 @@ class StorageService {
 
   private getKey(baseKey: string): string {
     return this.currentUserId ? `${baseKey}_${this.currentUserId}` : baseKey;
+  }
+
+  getActiveUserId(): string | null {
+    return this.currentUserId;
   }
 
   // --- Profile ---
@@ -604,6 +611,86 @@ class StorageService {
     this.saveSavingsGoals([]);
     this.saveCreditDebitRecords([]);
     this.saveLoans([]);
+  }
+
+  /** Return the active user's complete local cache for offline fallback/export. */
+  getCurrentSnapshot(): TrackerData {
+    return {
+      profile: this.getProfile(),
+      categories: this.getCategories(),
+      transactions: this.getTransactions(),
+      budgets: this.getBudgets(),
+      savingsGoals: this.getSavingsGoals(),
+      creditDebitRecords: this.getCreditDebitRecords(),
+      loans: this.getLoans(),
+    };
+  }
+
+  /**
+   * Reserve unscoped pre-auth data for the first UID that claims it. The marker
+   * is written before any network work so a second account cannot adopt it if
+   * the first account's migration is interrupted. The legacy values are kept.
+   */
+  claimLegacyDataForUser(userId: string): boolean {
+    const owner = this.safeGetItem(LEGACY_OWNER_KEY);
+    if (owner) return owner === userId;
+
+    const hasLegacyData = Object.values(BASE_KEYS).some((key) => this.safeGetItem(key) !== null);
+    if (!hasLegacyData) return false;
+
+    this.safeSetItem(LEGACY_OWNER_KEY, userId);
+    return true;
+  }
+
+  /** Read exact persisted values, not getter defaults, for safe migration. */
+  getMigrationSources(userId: string, includeLegacy: boolean): TrackerDataSources {
+    const readSnapshot = (suffix: string): PartialTrackerData => {
+      const read = <T,>(baseKey: string): T | undefined => {
+        const raw = this.safeGetItem(`${baseKey}${suffix}`);
+        if (raw === null) return undefined;
+        try {
+          return JSON.parse(raw) as T;
+        } catch {
+          // Keep malformed local values untouched; the app's existing getters
+          // provide their usual safe defaults and the user can still export it.
+          return undefined;
+        }
+      };
+      const readArray = <T,>(baseKey: string): T[] | undefined => {
+        const value = read<unknown>(baseKey);
+        return Array.isArray(value) ? value as T[] : undefined;
+      };
+      const profile = read<unknown>(BASE_KEYS.PROFILE);
+      const budgets = read<unknown>(BASE_KEYS.BUDGETS);
+
+      return {
+        profile: profile && typeof profile === 'object' && !Array.isArray(profile) ? profile as UserProfile : undefined,
+        transactions: readArray<Transaction>(BASE_KEYS.TRANSACTIONS),
+        categories: readArray<Category>(BASE_KEYS.CATEGORIES),
+        budgets: budgets && typeof budgets === 'object' && !Array.isArray(budgets)
+          ? budgets as Record<string, MonthlyBudget>
+          : undefined,
+        savingsGoals: readArray<SavingsGoal>(BASE_KEYS.SAVINGS),
+        creditDebitRecords: readArray<CreditDebitRecord>(BASE_KEYS.CREDIT_DEBIT),
+        loans: readArray<Loan>(BASE_KEYS.LOANS),
+      };
+    };
+
+    return {
+      user: readSnapshot(`_${userId}`),
+      legacy: includeLegacy ? readSnapshot('') : {},
+    };
+  }
+
+  /** Update only this UID's local cache after a verified Firestore snapshot. */
+  applyCloudSnapshot(data: TrackerData): void {
+    this.saveProfile(data.profile);
+    this.saveCategories(data.categories);
+    this.saveTransactions(data.transactions);
+    this.saveBudgets(data.budgets);
+    this.saveSavingsGoals(data.savingsGoals);
+    this.saveCreditDebitRecords(data.creditDebitRecords);
+    this.saveLoans(data.loans);
   }
 }
 

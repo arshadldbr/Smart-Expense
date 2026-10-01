@@ -1,4 +1,5 @@
 import { Category } from '../types';
+import { storageService } from './storageService';
 
 interface SuggestionResult {
   categoryId: string;
@@ -253,11 +254,30 @@ const KEYWORD_RULES: {
 ];
 
 const LEARNED_RULES_STORAGE_KEY = 'smart_expense_tracker_learned_rules';
+const LEARNED_RULES_OWNER_KEY = 'smart_expense_tracker_learned_rules_owner_uid_v1';
 
-// Load user-specific learned rules from localStorage
+function getLearnedRulesStorageKey(): string {
+  const uid = storageService.getActiveUserId();
+  if (!uid) return LEARNED_RULES_STORAGE_KEY;
+
+  const scopedKey = `${LEARNED_RULES_STORAGE_KEY}_${uid}`;
+  try {
+    const legacyRules = localStorage.getItem(LEARNED_RULES_STORAGE_KEY);
+    const owner = localStorage.getItem(LEARNED_RULES_OWNER_KEY);
+    if (legacyRules && (!owner || owner === uid)) {
+      if (!owner) localStorage.setItem(LEARNED_RULES_OWNER_KEY, uid);
+      if (!localStorage.getItem(scopedKey)) localStorage.setItem(scopedKey, legacyRules);
+    }
+  } catch {
+    // If browser storage is unavailable, keep the existing graceful fallback.
+  }
+  return scopedKey;
+}
+
+// Load rules from the active account's local namespace.
 export function getLearnedRules(): Record<string, { categoryId: string; subcategory?: string }> {
   try {
-    const raw = localStorage.getItem(LEARNED_RULES_STORAGE_KEY);
+    const raw = localStorage.getItem(getLearnedRulesStorageKey());
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -271,7 +291,7 @@ export function learnCategorizationRule(inputText: string, categoryId: string, s
     const rules = getLearnedRules();
     const cleanWord = inputText.toLowerCase().trim();
     rules[cleanWord] = { categoryId, subcategory };
-    localStorage.setItem(LEARNED_RULES_STORAGE_KEY, JSON.stringify(rules));
+    localStorage.setItem(getLearnedRulesStorageKey(), JSON.stringify(rules));
   } catch (err) {
     console.warn('Could not save learned rule', err);
   }

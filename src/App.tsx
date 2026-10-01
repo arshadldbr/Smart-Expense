@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { storageService } from './services/storageService';
 import {
   calculateMonthlySummary,
@@ -32,13 +32,31 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthScreen } from './components/AuthScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
+import { getFriendlySyncError, persistUserDataChanges, startUserDataSync } from './services/firestoreService';
+import type { SyncStatus } from './services/firestoreService';
+import type { TrackerData } from './services/firestoreDataModel';
 
 interface MainTrackerAppProps {
   isDark: boolean;
   onToggleTheme: () => void;
+  cloudReady: boolean;
+  syncStatus: SyncStatus;
+  syncError: string | null;
+  onSyncStatus: (status: SyncStatus, message?: string) => void;
+  onCloudReady: () => void;
+  persistData: (family: keyof TrackerData, previous: unknown, next: unknown) => void;
 }
 
-function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
+function MainTrackerApp({
+  isDark,
+  onToggleTheme,
+  cloudReady,
+  syncStatus,
+  syncError,
+  onSyncStatus,
+  onCloudReady,
+  persistData,
+}: MainTrackerAppProps) {
   const { user, logout } = useAuth();
 
   // Central application state backed by local storage
@@ -49,6 +67,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(() => storageService.getSavingsGoals());
   const [creditDebitRecords, setCreditDebitRecords] = useState<CreditDebitRecord[]>(() => storageService.getCreditDebitRecords());
   const [loans, setLoans] = useState<Loan[]>(() => storageService.getLoans());
+  const hasInitialSyncData = useRef(false);
 
   // Reload user-scoped data whenever authenticated user changes
   useEffect(() => {
@@ -62,6 +81,28 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
       setLoans(storageService.getLoans());
     }
   }, [user]);
+
+  // Only start the cloud read/listeners after Firebase Auth has resolved this UID.
+  useEffect(() => {
+    if (!user) return;
+    return startUserDataSync(user.uid, {
+      onData: (data) => {
+        setProfile(data.profile);
+        setCategories(data.categories);
+        setTransactions(data.transactions);
+        if (!hasInitialSyncData.current) {
+          hasInitialSyncData.current = true;
+          if (data.transactions[0]?.date) setSelectedMonth(data.transactions[0].date.substring(0, 7));
+        }
+        setBudgets(data.budgets);
+        setSavingsGoals(data.savingsGoals);
+        setCreditDebitRecords(data.creditDebitRecords);
+        setLoans(data.loans);
+      },
+      onStatus: onSyncStatus,
+      onReady: onCloudReady,
+    });
+  }, [user?.uid, onSyncStatus, onCloudReady]);
 
   // Navigation & Theme
   const [activeTab, setActiveTab] = useState<ViewTab>('dashboard');
@@ -203,6 +244,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
 
     setTransactions(updatedList);
     storageService.saveTransactions(updatedList);
+    persistData('transactions', transactions, updatedList);
     setIsAddTxModalOpen(false);
     setEditingTransaction(null);
   };
@@ -211,6 +253,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     const updatedList = transactions.filter((t) => t.id !== id);
     setTransactions(updatedList);
     storageService.saveTransactions(updatedList);
+    persistData('transactions', transactions, updatedList);
   };
 
   // Budget handler
@@ -225,6 +268,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     };
     setBudgets(newBudgets);
     storageService.saveBudgets(newBudgets);
+    persistData('budgets', budgets, newBudgets);
   };
 
   // Savings Goal handlers
@@ -249,6 +293,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     const updated = [...savingsGoals, newGoal];
     setSavingsGoals(updated);
     storageService.saveSavingsGoals(updated);
+    persistData('savingsGoals', savingsGoals, updated);
   };
 
   const handleRecordSavingsActivity = (
@@ -275,12 +320,14 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     });
     setSavingsGoals(updated);
     storageService.saveSavingsGoals(updated);
+    persistData('savingsGoals', savingsGoals, updated);
   };
 
   const handleDeleteSavingsGoal = (goalId: string) => {
     const updated = savingsGoals.filter((g) => g.id !== goalId);
     setSavingsGoals(updated);
     storageService.saveSavingsGoals(updated);
+    persistData('savingsGoals', savingsGoals, updated);
   };
 
   // Credit / Debit handlers
@@ -298,6 +345,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     const updated = [newRec, ...creditDebitRecords];
     setCreditDebitRecords(updated);
     storageService.saveCreditDebitRecords(updated);
+    persistData('creditDebitRecords', creditDebitRecords, updated);
   };
 
   const handleRecordCreditDebitPayment = (id: string, paymentAmount: number) => {
@@ -316,12 +364,14 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     });
     setCreditDebitRecords(updated);
     storageService.saveCreditDebitRecords(updated);
+    persistData('creditDebitRecords', creditDebitRecords, updated);
   };
 
   const handleDeleteCreditDebitRecord = (id: string) => {
     const updated = creditDebitRecords.filter((r) => r.id !== id);
     setCreditDebitRecords(updated);
     storageService.saveCreditDebitRecords(updated);
+    persistData('creditDebitRecords', creditDebitRecords, updated);
   };
 
   // Loan handlers
@@ -339,6 +389,7 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     const updated = [newLoan, ...loans];
     setLoans(updated);
     storageService.saveLoans(updated);
+    persistData('loans', loans, updated);
   };
 
   const handleRecordLoanRepayment = (loanId: string, amount: number, notes?: string) => {
@@ -363,12 +414,14 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     });
     setLoans(updated);
     storageService.saveLoans(updated);
+    persistData('loans', loans, updated);
   };
 
   const handleDeleteLoan = (loanId: string) => {
     const updated = loans.filter((l) => l.id !== loanId);
     setLoans(updated);
     storageService.saveLoans(updated);
+    persistData('loans', loans, updated);
   };
 
   // Category and Settings handlers
@@ -381,18 +434,21 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
     const updated = [...categories, newCat];
     setCategories(updated);
     storageService.saveCategories(updated);
+    persistData('categories', categories, updated);
   };
 
   const handleDeleteCategory = (categoryId: string) => {
     const updated = categories.filter((c) => c.id !== categoryId);
     setCategories(updated);
     storageService.saveCategories(updated);
+    persistData('categories', categories, updated);
   };
 
   const handleUpdateProfile = (updates: Partial<UserProfile>) => {
     const updated = { ...profile, ...updates };
     setProfile(updated);
     storageService.saveProfile(updated);
+    persistData('profile', profile, updated);
   };
 
   const handleExportAllData = () => {
@@ -408,15 +464,24 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
   };
 
   const handleImportAllData = (jsonData: string): boolean => {
+    const previous = storageService.getCurrentSnapshot();
     const success = storageService.importAllData(jsonData);
     if (success) {
-      setProfile(storageService.getProfile());
-      setCategories(storageService.getCategories());
-      setTransactions(storageService.getTransactions());
-      setBudgets(storageService.getBudgets());
-      setSavingsGoals(storageService.getSavingsGoals());
-      setCreditDebitRecords(storageService.getCreditDebitRecords());
-      setLoans(storageService.getLoans());
+      const imported = storageService.getCurrentSnapshot();
+      setProfile(imported.profile);
+      setCategories(imported.categories);
+      setTransactions(imported.transactions);
+      setBudgets(imported.budgets);
+      setSavingsGoals(imported.savingsGoals);
+      setCreditDebitRecords(imported.creditDebitRecords);
+      setLoans(imported.loans);
+      persistData('profile', previous.profile, imported.profile);
+      persistData('categories', previous.categories, imported.categories);
+      persistData('transactions', previous.transactions, imported.transactions);
+      persistData('budgets', previous.budgets, imported.budgets);
+      persistData('savingsGoals', previous.savingsGoals, imported.savingsGoals);
+      persistData('creditDebitRecords', previous.creditDebitRecords, imported.creditDebitRecords);
+      persistData('loans', previous.loans, imported.loans);
       return true;
     }
     return false;
@@ -428,16 +493,34 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
         'Reset all financial data to the empty state? This will delete your saved financial entries.'
       )
     ) {
+      const previous = storageService.getCurrentSnapshot();
       storageService.resetToEmptyData();
-      setProfile(storageService.getProfile());
-      setCategories(storageService.getCategories());
-      setTransactions(storageService.getTransactions());
-      setBudgets(storageService.getBudgets());
-      setSavingsGoals(storageService.getSavingsGoals());
-      setCreditDebitRecords(storageService.getCreditDebitRecords());
-      setLoans(storageService.getLoans());
+      const resetData = storageService.getCurrentSnapshot();
+      setProfile(resetData.profile);
+      setCategories(resetData.categories);
+      setTransactions(resetData.transactions);
+      setBudgets(resetData.budgets);
+      setSavingsGoals(resetData.savingsGoals);
+      setCreditDebitRecords(resetData.creditDebitRecords);
+      setLoans(resetData.loans);
+      persistData('profile', previous.profile, resetData.profile);
+      persistData('categories', previous.categories, resetData.categories);
+      persistData('transactions', previous.transactions, resetData.transactions);
+      persistData('budgets', previous.budgets, resetData.budgets);
+      persistData('savingsGoals', previous.savingsGoals, resetData.savingsGoals);
+      persistData('creditDebitRecords', previous.creditDebitRecords, resetData.creditDebitRecords);
+      persistData('loans', previous.loans, resetData.loans);
     }
   };
+
+  if (!cloudReady) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-50 dark:bg-slate-950 text-emerald-600 dark:text-emerald-400">
+        <Loader2 className="w-8 h-8 animate-spin" aria-label="Loading account data" />
+        <span className="text-sm text-slate-600 dark:text-slate-300">Loading your account data…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
@@ -457,6 +540,24 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
         userEmail={user?.email || profile.email}
         onLogout={logout}
       />
+
+      <div
+        role="status"
+        aria-live="polite"
+        className={`px-4 py-2 text-center text-xs font-medium ${
+          syncStatus === 'error'
+            ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
+            : syncStatus === 'offline'
+              ? 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300'
+              : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+        }`}
+      >
+        {syncStatus === 'saving' && 'Saving changes to your cloud account…'}
+        {syncStatus === 'syncing' && 'Syncing your private account data…'}
+        {syncStatus === 'saved' && 'Cloud sync is up to date.'}
+        {syncStatus === 'offline' && 'Offline — your browser-local copy is retained; cloud sync may be pending.'}
+        {syncStatus === 'error' && (syncError || 'Cloud sync failed. Your browser-local copy is retained; the change is not confirmed in Firestore.')}
+      </div>
 
       {/* Main Content Viewport */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 sm:pb-10">
@@ -635,6 +736,37 @@ function MainTrackerApp({ isDark, onToggleTheme }: MainTrackerAppProps) {
 function AppShell() {
   const { user, loading } = useAuth();
   const [isDark, setIsDark] = useState<boolean>(() => storageService.getTheme() === 'dark');
+  const [cloudReady, setCloudReady] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('loading');
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const activeUid = useRef<string | undefined>(undefined);
+  activeUid.current = user?.uid;
+
+  const reportSyncStatus = useCallback((status: SyncStatus, message?: string) => {
+    setSyncStatus(status);
+    setSyncError(message || null);
+  }, []);
+
+  const reportCloudReady = useCallback(() => {
+    setIsDark(storageService.getTheme() === 'dark');
+    setCloudReady(true);
+  }, []);
+
+  const persistData = (family: keyof TrackerData, previous: unknown, next: unknown) => {
+    if (!user) return;
+    const uid = user.uid;
+    setSyncError(null);
+    setSyncStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'saving');
+    void persistUserDataChanges(uid, family, previous, next).then(() => {
+      if (activeUid.current !== uid) return;
+      setSyncStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'saved');
+      setSyncError(null);
+    }).catch((error: unknown) => {
+      if (activeUid.current !== uid) return;
+      setSyncStatus('error');
+      setSyncError(getFriendlySyncError(error));
+    });
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
@@ -642,16 +774,23 @@ function AppShell() {
 
   useEffect(() => {
     if (user) {
+      setCloudReady(false);
+      setSyncStatus('syncing');
+      setSyncError(null);
       setIsDark(storageService.getTheme() === 'dark');
+    } else {
+      setCloudReady(false);
+      setSyncStatus('loading');
+      setSyncError(null);
     }
   }, [user]);
 
   const toggleTheme = () => {
-    setIsDark((current) => {
-      const next = !current;
-      storageService.setTheme(next ? 'dark' : 'light');
-      return next;
-    });
+    const previous = storageService.getProfile();
+    const next = !isDark;
+    storageService.setTheme(next ? 'dark' : 'light');
+    setIsDark(next);
+    persistData('profile', previous, storageService.getProfile());
   };
 
   return (
@@ -661,7 +800,17 @@ function AppShell() {
           <Loader2 className="w-8 h-8 animate-spin" aria-label="Loading authentication" />
         </div>
       ) : user ? (
-        <MainTrackerApp isDark={isDark} onToggleTheme={toggleTheme} />
+        <MainTrackerApp
+          key={user.uid}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+          cloudReady={cloudReady}
+          syncStatus={syncStatus}
+          syncError={syncError}
+          onSyncStatus={reportSyncStatus}
+          onCloudReady={reportCloudReady}
+          persistData={persistData}
+        />
       ) : (
         <AuthScreen isDark={isDark} onToggleTheme={toggleTheme} />
       )}
