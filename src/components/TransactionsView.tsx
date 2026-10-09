@@ -23,6 +23,7 @@ import {
 } from '../types';
 import { formatMoney } from '../constants/currencies';
 import { CategoryIcon } from './CategoryIcon';
+import { ReceiptModal } from './ReceiptModal';
 
 interface TransactionsViewProps {
   transactions: Transaction[];
@@ -46,7 +47,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'>('date_desc');
-  const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
+  const [selectedReceiptTx, setSelectedReceiptTx] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
@@ -325,11 +326,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                               {tx.receiptUrl && (
                                 <button
                                   type="button"
-                                  onClick={() => setSelectedReceiptUrl(tx.receiptUrl || null)}
-                                  className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 hover:bg-emerald-100"
+                                  onClick={() => setSelectedReceiptTx(tx)}
+                                  className="text-[10px] px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
+                                  title="View full receipt, zoom & download PNG"
                                 >
                                   <Receipt className="w-3 h-3" />
-                                  <span>Receipt</span>
+                                  <span>View Receipt</span>
                                 </button>
                               )}
                             </div>
@@ -423,38 +425,17 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
         </div>
       )}
 
-      {/* Receipt Image Lightbox Modal */}
-      {selectedReceiptUrl && (
-        <div
-          id="receipt-lightbox-backdrop"
-          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setSelectedReceiptUrl(null)}
-        >
-          <div
-            className="relative max-w-lg w-full bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-2xl p-4 border border-slate-200 dark:border-slate-800"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <span className="font-bold text-sm text-slate-900 dark:text-white">
-                Attached Receipt
-              </span>
-              <button
-                onClick={() => setSelectedReceiptUrl(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="pt-3 max-h-[70vh] overflow-auto flex justify-center">
-              <img
-                src={selectedReceiptUrl}
-                alt="Receipt Full Preview"
-                className="max-h-[60vh] w-auto object-contain rounded-xl"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          </div>
-        </div>
+      {/* High-Resolution Zoom, Pan & PNG Download Modal */}
+      {selectedReceiptTx && (
+        <ReceiptModal
+          isOpen={Boolean(selectedReceiptTx)}
+          onClose={() => setSelectedReceiptTx(null)}
+          imageUrl={selectedReceiptTx.receiptUrl || null}
+          title={selectedReceiptTx.description}
+          merchant={selectedReceiptTx.merchant}
+          amount={formatMoney(selectedReceiptTx.amount, currency)}
+          date={selectedReceiptTx.date}
+        />
       )}
 
       {/* Delete Confirmation Modal (PRD Section 32: Ask for confirmation before deleting) */}

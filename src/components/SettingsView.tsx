@@ -16,10 +16,22 @@ import {
   FolderPlus,
   ShieldCheck,
   LogOut,
+  Cloud,
+  CloudUpload,
+  CloudDownload,
+  RefreshCw,
+  CheckCircle2,
+  Database,
+  ExternalLink,
+  Loader2,
+  FileText,
 } from 'lucide-react';
 import { UserProfile, Category, CurrencyCode } from '../types';
 import { SUPPORTED_CURRENCIES } from '../constants/currencies';
 import { CategoryIcon } from './CategoryIcon';
+import { backblazeService, B2CloudFile } from '../services/backblazeService';
+import { storageService } from '../services/storageService';
+import { ReceiptModal } from './ReceiptModal';
 
 interface SettingsViewProps {
   profile: UserProfile;
@@ -66,6 +78,98 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   // Import file ref
   const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  // Backblaze B2 Cloud Storage States
+  const [b2Status, setB2Status] = useState<{ connected: boolean; message: string } | null>(null);
+  const [isTestingB2, setIsTestingB2] = useState(false);
+  const [isBackingUpB2, setIsBackingUpB2] = useState(false);
+  const [isRestoringB2, setIsRestoringB2] = useState(false);
+  const [b2Message, setB2Message] = useState<string | null>(null);
+  const [cloudFiles, setCloudFiles] = useState<B2CloudFile[]>([]);
+  const [showCloudFiles, setShowCloudFiles] = useState(false);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [previewReceiptFile, setPreviewReceiptFile] = useState<B2CloudFile | null>(null);
+
+  const handleTestB2Connection = async () => {
+    setIsTestingB2(true);
+    setB2Message(null);
+    try {
+      const status = await backblazeService.checkConnection();
+      if (status.connected) {
+        setB2Status({
+          connected: true,
+          message: `Connected successfully to Backblaze B2 (Bucket: ${status.bucketName}, Endpoint: ${status.endpoint})`,
+        });
+      } else {
+        setB2Status({
+          connected: false,
+          message: status.error || 'Could not reach Backblaze B2 storage',
+        });
+      }
+    } catch (e: any) {
+      setB2Status({
+        connected: false,
+        message: e?.message || 'Connection test failed',
+      });
+    } finally {
+      setIsTestingB2(false);
+    }
+  };
+
+  const handleB2CloudBackup = async () => {
+    setIsBackingUpB2(true);
+    setB2Message(null);
+    try {
+      const allData = storageService.exportAllData();
+      const res = await backblazeService.backupData(JSON.parse(allData), userId || 'user');
+      if (res.success) {
+        setB2Message('Snapshot successfully uploaded to Backblaze B2 Cloud (Smartexpense)!');
+      } else {
+        setB2Message(`Backup upload failed: ${res.error}`);
+      }
+    } catch (err: any) {
+      setB2Message(`Backup error: ${err?.message || 'Failed to upload backup'}`);
+    } finally {
+      setIsBackingUpB2(false);
+      setTimeout(() => setB2Message(null), 5000);
+    }
+  };
+
+  const handleB2CloudRestore = async () => {
+    setIsRestoringB2(true);
+    setB2Message(null);
+    try {
+      const data = await backblazeService.fetchLatestBackup(userId || 'user');
+      if (data) {
+        const ok = onImportAllData(JSON.stringify(data));
+        if (ok) {
+          setB2Message('Latest cloud backup successfully restored from Backblaze B2!');
+        } else {
+          setB2Message('Failed to parse cloud backup payload.');
+        }
+      } else {
+        setB2Message('No previous cloud backup found in Backblaze B2 for this account.');
+      }
+    } catch (err: any) {
+      setB2Message(`Cloud restore error: ${err?.message}`);
+    } finally {
+      setIsRestoringB2(false);
+      setTimeout(() => setB2Message(null), 5000);
+    }
+  };
+
+  const handleLoadCloudFiles = async () => {
+    setIsLoadingFiles(true);
+    setShowCloudFiles(true);
+    try {
+      const files = await backblazeService.listFiles();
+      setCloudFiles(files);
+    } catch (err) {
+      console.warn('Failed to load cloud files:', err);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -380,6 +484,171 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      {/* Backblaze B2 Cloud Storage Integration */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <Cloud className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Backblaze B2 Cloud Storage</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
+                  Connected
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Target Bucket: <strong className="font-semibold text-slate-700 dark:text-slate-300">Smartexpense</strong> (Endpoint: <code className="text-[11px] font-mono">s3.us-east-005.backblazeb2.com</code>)
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleTestB2Connection}
+            disabled={isTestingB2}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors disabled:opacity-50 cursor-pointer self-start sm:self-auto"
+          >
+            {isTestingB2 ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            <span>Test Connection</span>
+          </button>
+        </div>
+
+        {/* Credentials Details Info Pill */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs">
+          <div>
+            <span className="text-[10px] uppercase font-semibold text-slate-400">Bucket Name</span>
+            <div className="font-bold text-slate-800 dark:text-slate-200 truncate">Smartexpense</div>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-semibold text-slate-400">Bucket ID</span>
+            <div className="font-mono text-[11px] text-slate-700 dark:text-slate-300 truncate" title="0dd37800427b1ffaae130116">
+              0dd37800...116
+            </div>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-semibold text-slate-400">Region</span>
+            <div className="font-medium text-slate-700 dark:text-slate-300">us-east-005</div>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-semibold text-slate-400">Key Name</span>
+            <div className="font-medium text-slate-700 dark:text-slate-300 truncate">Master App Key</div>
+          </div>
+        </div>
+
+        {/* Status Alert */}
+        {b2Status && (
+          <div
+            className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+              b2Status.connected
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+            }`}
+          >
+            {b2Status.connected ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+            <span>{b2Status.message}</span>
+          </div>
+        )}
+
+        {b2Message && (
+          <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{b2Message}</span>
+          </div>
+        )}
+
+        {/* Actions Row */}
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <button
+            type="button"
+            onClick={handleB2CloudBackup}
+            disabled={isBackingUpB2}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+          >
+            {isBackingUpB2 ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CloudUpload className="w-3.5 h-3.5" />}
+            <span>Backup All Data to Backblaze</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleB2CloudRestore}
+            disabled={isRestoringB2}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-800 dark:text-slate-200 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {isRestoringB2 ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CloudDownload className="w-3.5 h-3.5" />}
+            <span>Restore Latest from Backblaze</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLoadCloudFiles}
+            disabled={isLoadingFiles}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-medium transition-colors cursor-pointer ml-auto"
+          >
+            {isLoadingFiles ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
+            <span>{showCloudFiles ? 'Refresh Cloud Files' : 'Browse Stored Files'}</span>
+          </button>
+        </div>
+
+        {/* Cloud Files Browser Table */}
+        {showCloudFiles && (
+          <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Files Stored in Backblaze B2 ({cloudFiles.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowCloudFiles(false)}
+                className="text-xs text-slate-400 hover:underline cursor-pointer"
+              >
+                Hide
+              </button>
+            </div>
+
+            {cloudFiles.length > 0 ? (
+              <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800 text-xs font-mono">
+                {cloudFiles.map((file) => (
+                  <div key={file.fileId || file.fileName} className="p-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate text-slate-800 dark:text-slate-200">{file.fileName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] text-slate-400">
+                        {(file.contentLength / 1024).toFixed(1)} KB
+                      </span>
+                      {file.fileName.includes('receipt') && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewReceiptFile(file)}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-sans text-xs font-semibold hover:bg-emerald-200 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
+                        >
+                          View / Download PNG
+                        </button>
+                      )}
+                      <a
+                        href={`/api/b2/download?file=${encodeURIComponent(file.fileName)}`}
+                        download
+                        className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+                        title="Download file directly"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 py-3 text-center">
+                {isLoadingFiles ? 'Loading files from Backblaze B2...' : 'No files found in Smartexpense bucket.'}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Backup, Restore & Reset */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         <h2 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -421,6 +690,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* High-Resolution Zoom & PNG Download Modal for Cloud File */}
+      {previewReceiptFile && (
+        <ReceiptModal
+          isOpen={Boolean(previewReceiptFile)}
+          onClose={() => setPreviewReceiptFile(null)}
+          imageUrl={previewReceiptFile.downloadUrl || `/api/b2/view?file=${encodeURIComponent(previewReceiptFile.fileName)}`}
+          title={previewReceiptFile.fileName}
+          date={new Date(previewReceiptFile.uploadTimestamp).toISOString().split('T')[0]}
+        />
+      )}
     </div>
   );
 };

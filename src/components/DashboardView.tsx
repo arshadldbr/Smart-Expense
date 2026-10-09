@@ -41,6 +41,7 @@ import {
 } from '../types';
 import { formatMoney } from '../constants/currencies';
 import { CategoryIcon } from './CategoryIcon';
+import { ReceiptModal } from './ReceiptModal';
 
 interface DashboardViewProps {
   summary: MonthlyFinancialSummary;
@@ -72,6 +73,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   setActiveTab,
 }) => {
   const [showComparison, setShowComparison] = useState(false);
+  const [previewReceiptTx, setPreviewReceiptTx] = useState<Transaction | null>(null);
 
   // Parse display month name safely
   const safeMonth =
@@ -722,9 +724,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                         <span className="truncate max-w-[180px] sm:max-w-xs">{tx.description}</span>
                         {tx.receiptUrl && (
-                          <span title="Has receipt attachment">
-                            <Receipt className="w-3 h-3 text-slate-400" />
-                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewReceiptTx(tx);
+                            }}
+                            className="p-0.5 rounded text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors"
+                            title="Click to zoom receipt & download PNG"
+                          >
+                            <Receipt className="w-3.5 h-3.5" />
+                          </button>
                         )}
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
@@ -798,6 +808,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </a>
         </span>
       </div>
+
+      {/* High-Resolution Zoom & PNG Download Modal */}
+      {previewReceiptTx && (
+        <ReceiptModal
+          isOpen={Boolean(previewReceiptTx)}
+          onClose={() => setPreviewReceiptTx(null)}
+          imageUrl={previewReceiptTx.receiptUrl || null}
+          title={previewReceiptTx.description}
+          merchant={previewReceiptTx.merchant}
+          amount={formatMoney(previewReceiptTx.amount, currency)}
+          date={previewReceiptTx.date}
+        />
+      )}
     </div>
   );
 };

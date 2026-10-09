@@ -12,16 +12,18 @@ function githubPagesSpa(): Plugin {
       const distDir = path.resolve(process.cwd(), 'dist');
       const indexPath = path.join(distDir, 'index.html');
       const notFoundPath = path.join(distDir, '404.html');
+      const nojekyllPath = path.join(distDir, '.nojekyll');
       if (fs.existsSync(indexPath)) {
         fs.copyFileSync(indexPath, notFoundPath);
       }
+      fs.writeFileSync(nojekyllPath, '');
     },
   };
 }
 
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
   return {
-    base: '/Smart-Expense/',
+    base: command === 'build' ? '/Smart-Expense/' : '/',
     plugins: [react(), tailwindcss(), githubPagesSpa()],
     resolve: {
       alias: {
