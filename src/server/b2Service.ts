@@ -296,6 +296,63 @@ export class BackblazeB2Service {
 
     return results;
   }
+
+  /**
+   * Get direct upload URL for client presigned PUT upload
+   */
+  async getUploadUrlDirect(_fileName: string, _contentType: string): Promise<string> {
+    const auth = await this.authorize();
+    const res = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_url`, {
+      method: 'POST',
+      headers: {
+        Authorization: auth.authorizationToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bucketId: this.bucketId,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Failed to get upload URL: ${errText}`);
+    }
+
+    const data = await res.json();
+    return data.uploadUrl;
+  }
+
+  /**
+   * Delete file by fileName
+   */
+  async deleteFile(fileName: string): Promise<void> {
+    const auth = await this.authorize();
+    const listRes = await fetch(
+      `${auth.apiUrl}/b2api/v3/b2_list_file_names?bucketId=${this.bucketId}&prefix=${encodeURIComponent(fileName)}&maxFileCount=1`,
+      {
+        headers: {
+          Authorization: auth.authorizationToken,
+        },
+      }
+    );
+
+    if (!listRes.ok) return;
+    const listData = await listRes.json();
+    const file = listData.files?.[0];
+    if (!file) return;
+
+    await fetch(`${auth.apiUrl}/b2api/v3/b2_delete_file_version`, {
+      method: 'POST',
+      headers: {
+        Authorization: auth.authorizationToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fileName: file.fileName,
+        fileId: file.fileId,
+      }),
+    });
+  }
 }
 
 export const b2Service = new BackblazeB2Service();

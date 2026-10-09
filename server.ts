@@ -22,6 +22,103 @@ async function startServer() {
   // ==========================================
 
   // Check Backblaze B2 Connection Status & Health
+  // 1. Health check endpoint for Render.com and dev testing
+  app.get('/health', (_req, res) => {
+    res.json({
+      status: 'ok',
+      service: 'Smart Expense Backblaze B2 Proxy',
+      bucket: 'Smartexpense',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // 2. POST /api/upload-url: Presigned upload URL
+  app.post('/api/upload-url', async (req, res) => {
+    try {
+      const { fileName, contentType = 'image/png', userId = 'default_user' } = req.body;
+      if (!fileName) {
+        return res.status(400).json({ error: 'fileName is required' });
+      }
+      const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const timestamp = Date.now();
+      const fileKey = `uploads/${userId}/${timestamp}_${cleanName}`;
+
+      const uploadUrl = await b2Service.getUploadUrlDirect(fileKey, contentType);
+      res.json({
+        success: true,
+        uploadUrl,
+        fileKey,
+        expiresIn: 3600,
+      });
+    } catch (err: any) {
+      console.error('Error in /api/upload-url:', err);
+      res.status(500).json({ error: err?.message || 'Failed to generate upload URL' });
+    }
+  });
+
+  // 3. POST /api/view-url: Presigned view URL
+  app.post('/api/view-url', async (req, res) => {
+    try {
+      const { fileKey } = req.body;
+      if (!fileKey) {
+        return res.status(400).json({ error: 'fileKey is required' });
+      }
+      const viewUrl = await b2Service.getDownloadUrl(fileKey, 604800);
+      res.json({
+        success: true,
+        viewUrl,
+        fileKey,
+        expiresIn: 604800,
+      });
+    } catch (err: any) {
+      console.error('Error in /api/view-url:', err);
+      res.status(500).json({ error: err?.message || 'Failed to generate view URL' });
+    }
+  });
+
+  // 4. POST /api/download-url: Presigned download URL
+  app.post('/api/download-url', async (req, res) => {
+    try {
+      const { fileKey, fileName } = req.body;
+      if (!fileKey) {
+        return res.status(400).json({ error: 'fileKey is required' });
+      }
+      const safeName = (fileName || fileKey.split('/').pop() || 'receipt.png');
+      const downloadUrl = await b2Service.getDownloadUrl(fileKey, 3600);
+      res.json({
+        success: true,
+        downloadUrl,
+        fileKey,
+        fileName: safeName.endsWith('.png') ? safeName : `${safeName}.png`,
+      });
+    } catch (err: any) {
+      console.error('Error in /api/download-url:', err);
+      res.status(500).json({ error: err?.message || 'Failed to generate download URL' });
+    }
+  });
+
+  // 5. POST /api/delete-file
+  app.post('/api/delete-file', async (req, res) => {
+    try {
+      const { fileKey, userId } = req.body;
+      if (!fileKey) {
+        return res.status(400).json({ error: 'fileKey is required' });
+      }
+      if (userId && !fileKey.startsWith(`uploads/${userId}/`) && !fileKey.startsWith(`receipts/${userId}/`)) {
+        return res.status(403).json({ error: 'Unauthorized to delete this file' });
+      }
+      await b2Service.deleteFile(fileKey);
+      res.json({
+        success: true,
+        message: 'File deleted successfully from Backblaze B2',
+        fileKey,
+      });
+    } catch (err: any) {
+      console.error('Error in /api/delete-file:', err);
+      res.status(500).json({ error: err?.message || 'Failed to delete file' });
+    }
+  });
+
   app.get('/api/b2/status', async (_req, res) => {
     try {
       const status = await b2Service.verifyConnection();
