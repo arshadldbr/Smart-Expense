@@ -1,8 +1,16 @@
 /**
- * Backblaze B2 Cloud Storage Service
- * Handles receipt image uploads, automated cloud backups, and data restoration.
- * Integrates via Express server proxy (/api/b2/*) with direct client fallback for static hosting.
+ * Backblaze B2 Direct Cloud Storage Service
+ * Uses Backblaze B2 S3-Compatible API with the provisioned Application Key.
+ * Works seamlessly in both static hosting (GitHub Pages) and full-stack environments.
  */
+
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface B2Status {
   connected: boolean;
@@ -39,88 +47,100 @@ export interface B2CloudFile {
   downloadUrl: string;
 }
 
-class BackblazeService {
-  public bucketName = 'Smartexpense';
-  public bucketId = '0dd37800427b1ffaae130116';
-  public endpoint = 's3.us-east-005.backblazeb2.com';
+const B2_CREDENTIALS = {
+  bucketName: 'Smartexpense',
+  bucketId: '0dd37800427b1ffaae130116',
+  endpoint: 'https://s3.us-east-005.backblazeb2.com',
+  region: 'us-east-005',
+  accessKeyId: '005d3802bfae3160000000001',
+  secretAccessKey: 'K005RpLjByfMvH2c4n3hMEd3Dnc1wTA',
+};
 
-  /**
-   * Helper to convert File or Blob to Base64 string
-   */
-  private fileToBase64(file: File | Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-      reader.readAsDataURL(file);
-    });
-  }
+// Initialize S3 client for Backblaze B2 S3 API
+const s3 = new S3Client({
+  endpoint: B2_CREDENTIALS.endpoint,
+  region: B2_CREDENTIALS.region,
+  credentials: {
+    accessKeyId: B2_CREDENTIALS.accessKeyId,
+    secretAccessKey: B2_CREDENTIALS.secretAccessKey,
+  },
+});
+
+class BackblazeService {
+  public bucketName = B2_CREDENTIALS.bucketName;
+  public bucketId = B2_CREDENTIALS.bucketId;
+  public endpoint = 's3.us-east-005.backblazeb2.com';
 
   /**
    * Check connection status to Backblaze B2 bucket
    */
   async checkConnection(): Promise<B2Status> {
     try {
-      const res = await fetch('/api/b2/status');
-      if (res.ok) {
-        const data = await res.json();
-        return {
-          connected: Boolean(data.connected ?? data.success),
-          bucketName: data.bucketName || this.bucketName,
-          bucketId: data.bucketId || this.bucketId,
-          endpoint: data.endpoint || this.endpoint,
-          fileCount: data.fileCount,
-        };
-      }
+      const res = await s3.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucketName,
+          MaxKeys: 10,
+        })
+      );
+
       return {
-        connected: false,
+        connected: true,
         bucketName: this.bucketName,
-        error: `Server responded with status ${res.status}`,
+        bucketId: this.bucketId,
+        endpoint: this.endpoint,
+        fileCount: res.KeyCount ?? res.Contents?.length ?? 0,
       };
     } catch (err: any) {
+      console.error('B2 connection error:', err);
       return {
         connected: false,
         bucketName: this.bucketName,
-        error: err?.message || 'Failed to reach cloud storage service',
+        endpoint: this.endpoint,
+        error: err?.message || 'Failed to reach Backblaze B2 bucket',
       };
     }
   }
 
   /**
-   * Upload receipt image to Backblaze B2 Smartexpense bucket
+   * Direct Upload: uploads receipt image to Backblaze B2 Smartexpense bucket
+   * This works in both GitHub Pages static environment and AI Studio!
    */
   async uploadReceipt(file: File, userId: string = 'default_user'): Promise<B2UploadResult> {
     try {
-      const base64Data = await this.fileToBase64(file);
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const key = `receipts/${userId}/${Date.now()}_${cleanFileName}`;
 
-      const response = await fetch('/api/b2/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          data: base64Data,
-          fileName: file.name,
-          contentType: file.type || 'image/jpeg',
-          folder: `receipts/${userId}`,
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      // Upload directly via S3 PutObject to Backblaze B2
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+          Body: uint8Array,
+          ContentType: file.type || 'image/png',
+        })
+      );
+
+      // Generate presigned download URL valid for 7 days (604800 seconds)
+      const presignedUrl = await getSignedUrl(
+        s3,
+        new GetObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
         }),
-      });
+        { expiresIn: 604800 }
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed (${response.status}): ${errorText}`);
-      }
-
-      const result = await response.json();
       return {
         success: true,
-        fileId: result.fileId,
-        fileName: result.fileName,
-        url: result.url,
-        size: result.size || file.size,
+        fileName: key,
+        url: presignedUrl,
+        size: file.size,
       };
     } catch (err: any) {
-      console.error('Backblaze receipt upload error:', err);
+      console.error('Direct Backblaze S3 upload failed:', err);
       return {
         success: false,
         fileName: file.name,
@@ -131,33 +151,53 @@ class BackblazeService {
   }
 
   /**
-   * Backup all application financial records to Backblaze B2
+   * Backup all application records to Backblaze B2
    */
   async backupData(backupPayload: any, userId: string = 'default_user'): Promise<B2BackupResult> {
     try {
-      const response = await fetch('/api/b2/backup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          payload: backupPayload,
-          userId,
+      const jsonStr = typeof backupPayload === 'string' ? backupPayload : JSON.stringify(backupPayload, null, 2);
+      const encoder = new TextEncoder();
+      const uint8Array = encoder.encode(jsonStr);
+
+      const nowStr = new Date().toISOString().replace(/[:.]/g, '-');
+      const archivePath = `backups/${userId}/${nowStr}_backup.json`;
+      const latestPath = `backups/${userId}/latest.json`;
+
+      // 1. Upload timestamped archive
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: this.bucketName,
+          Key: archivePath,
+          Body: uint8Array,
+          ContentType: 'application/json',
+        })
+      );
+
+      // 2. Upload latest pointer
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: this.bucketName,
+          Key: latestPath,
+          Body: uint8Array,
+          ContentType: 'application/json',
+        })
+      );
+
+      const latestUrl = await getSignedUrl(
+        s3,
+        new GetObjectCommand({
+          Bucket: this.bucketName,
+          Key: latestPath,
         }),
-      });
+        { expiresIn: 604800 }
+      );
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Backup failed (${response.status}): ${errText}`);
-      }
-
-      const result = await response.json();
       return {
         success: true,
-        message: result.message || 'Backup successfully saved to Backblaze B2',
-        fileName: result.fileName,
-        url: result.url,
-        timestamp: result.timestamp || new Date().toISOString(),
+        message: 'Backup successfully uploaded to Backblaze B2',
+        fileName: archivePath,
+        url: latestUrl,
+        timestamp: new Date().toISOString(),
       };
     } catch (err: any) {
       console.error('Backblaze backup error:', err);
@@ -173,14 +213,21 @@ class BackblazeService {
    */
   async fetchLatestBackup(userId: string = 'default_user'): Promise<any | null> {
     try {
-      const res = await fetch(`/api/b2/backup/latest?userId=${encodeURIComponent(userId)}`);
-      if (!res.ok) {
-        return null;
-      }
-      const json = await res.json();
-      return json.data || null;
+      const latestPath = `backups/${userId}/latest.json`;
+      const presignedUrl = await getSignedUrl(
+        s3,
+        new GetObjectCommand({
+          Bucket: this.bucketName,
+          Key: latestPath,
+        }),
+        { expiresIn: 3600 }
+      );
+
+      const res = await fetch(presignedUrl);
+      if (!res.ok) return null;
+      return await res.json();
     } catch (err) {
-      console.error('Failed to fetch latest cloud backup:', err);
+      console.error('Failed to fetch latest cloud backup from B2:', err);
       return null;
     }
   }
@@ -190,15 +237,45 @@ class BackblazeService {
    */
   async listFiles(prefix?: string): Promise<B2CloudFile[]> {
     try {
-      const query = prefix ? `?prefix=${encodeURIComponent(prefix)}` : '';
-      const res = await fetch(`/api/b2/files${query}`);
-      if (!res.ok) {
-        return [];
-      }
-      const data = await res.json();
-      return data.files || [];
+      const res = await s3.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucketName,
+          Prefix: prefix,
+          MaxKeys: 50,
+        })
+      );
+
+      const contents = res.Contents || [];
+      const filesWithUrls = await Promise.all(
+        contents.map(async (item) => {
+          const key = item.Key || '';
+          let downloadUrl = '';
+          try {
+            downloadUrl = await getSignedUrl(
+              s3,
+              new GetObjectCommand({
+                Bucket: this.bucketName,
+                Key: key,
+              }),
+              { expiresIn: 86400 }
+            );
+          } catch {
+            downloadUrl = `${B2_CREDENTIALS.endpoint}/${this.bucketName}/${key}`;
+          }
+
+          return {
+            fileId: item.ETag || key,
+            fileName: key,
+            contentLength: item.Size || 0,
+            uploadTimestamp: item.LastModified ? item.LastModified.getTime() : Date.now(),
+            downloadUrl,
+          };
+        })
+      );
+
+      return filesWithUrls;
     } catch (err) {
-      console.error('Failed to list files:', err);
+      console.error('Failed to list files from B2:', err);
       return [];
     }
   }
