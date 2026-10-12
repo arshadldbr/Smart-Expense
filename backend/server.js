@@ -35,6 +35,49 @@ const s3Client = new S3Client({
 });
 
 /**
+ * 0. GET /
+ * Root landing page confirming server is alive and running
+ */
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Smart Expense Backend API</title>
+      <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 20px; padding: 32px; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); text-align: center; }
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #064e3b; color: #34d399; border: 1px solid #059669; border-radius: 9999px; font-size: 12px; font-weight: bold; margin-bottom: 16px; }
+        h1 { font-size: 20px; margin: 0 0 8px; font-weight: 700; color: #ffffff; }
+        p { color: #94a3b8; font-size: 13px; margin: 0 0 20px; line-height: 1.5; }
+        .endpoint-list { background: #0f172a; border-radius: 12px; padding: 14px; text-align: left; font-family: monospace; font-size: 12px; color: #38bdf8; margin-bottom: 20px; border: 1px solid #334155; }
+        .endpoint-item { margin: 6px 0; }
+        .btn { display: inline-block; padding: 10px 20px; background: #10b981; color: #ffffff; text-decoration: none; border-radius: 12px; font-size: 13px; font-weight: 600; transition: background 0.2s; }
+        .btn:hover { background: #059669; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="badge">● Server Online & Running</div>
+        <h1>Smart Expense Backend API</h1>
+        <p>Your Render.com Node.js/Express server is active and securely proxying Backblaze B2 storage.</p>
+        <div class="endpoint-list">
+          <div class="endpoint-item">GET /health &rarr; Status Check</div>
+          <div class="endpoint-item">POST /api/upload-url &rarr; Presigned PUT</div>
+          <div class="endpoint-item">POST /api/view-url &rarr; Presigned View</div>
+          <div class="endpoint-item">POST /api/download-url &rarr; Presigned Download</div>
+          <div class="endpoint-item">POST /api/delete-file &rarr; File Delete</div>
+        </div>
+        <a href="/health" class="btn">Test /health JSON Endpoint</a>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+/**
  * 1. GET /health
  * Status check endpoint for Render.com health checks and pinging
  */

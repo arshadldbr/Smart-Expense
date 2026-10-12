@@ -28,9 +28,10 @@ export interface B2CloudFile {
   downloadUrl: string;
 }
 
-// In production on GitHub Pages, set VITE_RENDER_API_URL to your Render web service URL (e.g., https://smart-expense-api.onrender.com)
-// In local/AI Studio environment, it defaults to relative path ''
-const RENDER_API_BASE = (import.meta.env.VITE_RENDER_API_URL || '').replace(/\/$/, '');
+// Connected to your live Render.com Web Service
+const RENDER_API_BASE = (
+  import.meta.env.VITE_RENDER_API_URL || 'https://smart-expense-0d1h.onrender.com'
+).replace(/\/$/, '');
 
 class BackblazeService {
   public bucketName = 'Smartexpense';
