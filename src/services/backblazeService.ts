@@ -86,6 +86,7 @@ class BackblazeService {
           fileName: file.name,
           contentType,
           userId,
+          folder: 'receipts',
         }),
       });
 

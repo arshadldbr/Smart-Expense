@@ -98,7 +98,7 @@ app.get('/health', (req, res) => {
  */
 app.post('/api/upload-url', async (req, res) => {
   try {
-    const { fileName, contentType = 'image/png', userId = 'default_user' } = req.body;
+    const { fileName, contentType = 'image/png', userId = 'default_user', folder = 'receipts' } = req.body;
 
     if (!fileName) {
       return res.status(400).json({ error: 'fileName is required' });
@@ -106,8 +106,7 @@ app.post('/api/upload-url', async (req, res) => {
 
     const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
     const timestamp = Date.now();
-    // Mandatory Constraint: uploads/{userId}/{timestamp}_{filename}
-    const fileKey = `uploads/${userId}/${timestamp}_${cleanName}`;
+    const fileKey = `${folder}/${userId}/${timestamp}_${cleanName}`;
 
     const command = new PutObjectCommand({
       Bucket: B2_BUCKET_NAME,
