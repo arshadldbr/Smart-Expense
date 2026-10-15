@@ -1,88 +1,386 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Smart Expense Tracker — World-Class 3D UI/UX & Dimensional Design System
+   ========================================================================== */
 
-/* Giant Star dashboard centerpiece */
-.star-hero {
-  isolation: isolate;
+:root {
+  --canvas-bg: #f8fafc;
+  --surface-primary: #ffffff;
+  --surface-secondary: #f1f5f9;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-subtle: rgba(226, 232, 240, 0.8);
+  --bevel-light: rgba(255, 255, 255, 0.85);
+  --bevel-dark: rgba(0, 0, 0, 0.12);
+  --emerald-lip: #059669;
+  --rose-lip: #e11d48;
+  --indigo-lip: #4f46e5;
+  --amber-lip: #d97706;
 }
-.giant-star-shell {
+
+.dark {
+  --canvas-bg: #090d16;
+  --surface-primary: #131b2e;
+  --surface-secondary: #0f172a;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --bevel-light: rgba(255, 255, 255, 0.08);
+  --bevel-dark: rgba(0, 0, 0, 0.5);
+  --emerald-lip: #047857;
+  --rose-lip: #be123c;
+  --indigo-lip: #4338ca;
+  --amber-lip: #b45309;
+}
+
+body {
+  background-color: var(--canvas-bg);
+  color: var(--text-main);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==========================================================================
+   1. TACTILE 3D BUTTON DESIGN SYSTEM (Physical Depth & Smooth Press-Down)
+   ========================================================================== */
+
+/* Base 3D Button Behavior */
+.btn-3d {
   position: relative;
-  width: 172px;
-  height: 172px;
-  display: grid;
-  place-items: center;
-  color: #d1fae5;
-  filter: drop-shadow(0 0 22px rgba(52, 211, 153, .35));
-}
-.giant-star-icon {
-  position: relative;
-  z-index: 3;
-  width: 150px;
-  height: 150px;
-  color: #ecfdf5;
-  filter: drop-shadow(0 8px 16px rgba(0,0,0,.35));
-}
-.giant-star-glow {
-  position: absolute;
-  inset: 18px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(16,185,129,.42), rgba(16,185,129,.08) 48%, transparent 72%);
-  filter: blur(12px);
-}
-.giant-star-inner-ring {
-  position: absolute;
-  inset: 4px;
-  border: 1px solid rgba(167,243,208,.22);
-  border-radius: 50%;
-  box-shadow: inset 0 0 28px rgba(16,185,129,.12), 0 0 40px rgba(16,185,129,.10);
-}
-.star-orbit {
-  position: absolute;
-  width: 245px;
-  height: 245px;
-  border: 1px solid rgba(110,231,183,.13);
-  border-radius: 50%;
-  transform: rotate(-18deg);
-}
-.star-orbit-one { border-top-color: rgba(110,231,183,.55); }
-.star-orbit-two {
-  width: 310px;
-  height: 130px;
-  transform: rotate(28deg);
-  border-color: rgba(45,212,191,.10);
-}
-.star-side-stat, .star-bottom-stat {
-  position: absolute;
-  z-index: 4;
-  min-width: 142px;
-  padding: 12px 14px;
-  border: 1px solid rgba(148,163,184,.16);
-  border-radius: 14px;
-  background: rgba(15,23,42,.62);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(0,0,0,.18);
-}
-.star-side-stat span, .star-bottom-stat span {
-  display: block;
-  color: rgb(148 163 184);
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 600;
-  margin-bottom: 3px;
+  border-radius: 0.875rem;
+  user-select: none;
+  cursor: pointer;
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.12s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease;
+  will-change: transform, box-shadow;
 }
-.star-side-stat strong, .star-bottom-stat strong {
-  display: block;
-  color: white;
-  font-size: 14px;
-  font-weight: 800;
-}
-.star-side-left { left: 22px; top: 50%; transform: translateY(-50%); }
-.star-side-right { right: 22px; top: 50%; transform: translateY(-50%); }
-.star-bottom-stat { bottom: 18px; left: 50%; transform: translateX(-50%); }
 
-@media (max-width: 639px) {
-  .giant-star-shell { width: 145px; height: 145px; }
-  .giant-star-icon { width: 126px; height: 126px; }
-  .star-orbit { width: 210px; height: 210px; }
-  .star-orbit-two { width: 270px; height: 110px; }
-  .star-bottom-stat { bottom: 14px; min-width: 160px; text-align: center; }
+.btn-3d:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Primary Emerald 3D Button */
+.btn-3d-emerald {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border: 1px solid #10b981;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.15),
+    0 3px 0 #047857,
+    0 6px 14px -2px rgba(16, 185, 129, 0.38);
+}
+.btn-3d-emerald:hover {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.15),
+    0 4px 0 #047857,
+    0 8px 18px -2px rgba(16, 185, 129, 0.45);
+}
+.btn-3d-emerald:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.25),
+    0 1px 0 #047857,
+    0 2px 6px rgba(16, 185, 129, 0.25);
+}
+
+/* Rose 3D Button (Expenses & Destructive actions) */
+.btn-3d-rose {
+  background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%);
+  color: #ffffff;
+  border: 1px solid #f43f5e;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+    0 3px 0 #be123c,
+    0 6px 14px -2px rgba(244, 63, 94, 0.38);
+}
+.btn-3d-rose:hover {
+  background: linear-gradient(180deg, #fb7185 0%, #e11d48 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+    0 4px 0 #be123c,
+    0 8px 18px -2px rgba(244, 63, 94, 0.45);
+}
+.btn-3d-rose:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.25),
+    0 1px 0 #be123c,
+    0 2px 6px rgba(244, 63, 94, 0.25);
+}
+
+/* Indigo 3D Button (Savings & Investments) */
+.btn-3d-indigo {
+  background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
+  border: 1px solid #6366f1;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+    0 3px 0 #4338ca,
+    0 6px 14px -2px rgba(99, 102, 241, 0.38);
+}
+.btn-3d-indigo:hover {
+  background: linear-gradient(180deg, #818cf8 0%, #4f46e5 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+    0 4px 0 #4338ca,
+    0 8px 18px -2px rgba(99, 102, 241, 0.45);
+}
+.btn-3d-indigo:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.25),
+    0 1px 0 #4338ca,
+    0 2px 6px rgba(99, 102, 241, 0.25);
+}
+
+/* Amber 3D Button (Credit & Loans) */
+.btn-3d-amber {
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  border: 1px solid #f59e0b;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+    0 3px 0 #b45309,
+    0 6px 14px -2px rgba(245, 158, 11, 0.38);
+}
+.btn-3d-amber:hover {
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+    0 4px 0 #b45309,
+    0 8px 18px -2px rgba(245, 158, 11, 0.45);
+}
+.btn-3d-amber:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.25),
+    0 1px 0 #b45309,
+    0 2px 6px rgba(245, 158, 11, 0.25);
+}
+
+/* Neutral / Secondary 3D Button (Surface Raised) */
+.btn-3d-secondary {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    0 2px 0 #cbd5e1,
+    0 4px 8px rgba(0, 0, 0, 0.06);
+}
+.dark .btn-3d-secondary {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  color: #f1f5f9;
+  border: 1px solid #334155;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 2px 0 #0f172a,
+    0 4px 8px rgba(0, 0, 0, 0.35);
+}
+.btn-3d-secondary:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+}
+.dark .btn-3d-secondary:hover {
+  background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+}
+.btn-3d-secondary:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.15),
+    0 1px 0 #cbd5e1;
+}
+.dark .btn-3d-secondary:active {
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.4),
+    0 1px 0 #0f172a;
+}
+
+/* Tactile 3D Icon Button */
+.btn-3d-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+}
+
+/* ==========================================================================
+   2. DIMENSIONAL SURFACE CARDS (Layered Depth & Inset Rim Lighting)
+   ========================================================================== */
+
+.card-3d {
+  position: relative;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px -4px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .card-3d {
+  background: linear-gradient(145deg, #131d31 0%, #0c1322 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.6),
+    0 12px 32px -4px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.card-3d-interactive:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 16px 36px -6px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+.dark .card-3d-interactive:hover {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.8),
+    0 20px 42px -6px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Master Command Center Hero Card (Replaces the Giant Star) */
+.hero-command-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  background: linear-gradient(135deg, #091e1d 0%, #061517 50%, #0a1122 100%);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  box-shadow:
+    0 20px 45px -10px rgba(6, 78, 59, 0.35),
+    0 0 35px -5px rgba(16, 185, 129, 0.15),
+    inset 0 1px 0 rgba(167, 243, 208, 0.3),
+    inset 0 0 40px rgba(5, 150, 105, 0.08);
+}
+
+/* ==========================================================================
+   3. RECESSED & DIMENSIONAL INPUTS & SEGMENTED CONTROLS
+   ========================================================================== */
+
+/* Recessed Inset Track */
+.track-recessed {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.875rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+.dark .track-recessed {
+  background: #090e19;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* Dimensional Active Segment Pill */
+.segment-active {
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 0.625rem;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 #ffffff;
+}
+.dark .segment-active {
+  background: #1e293b;
+  color: #f8fafc;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Dimensional Inputs */
+.input-3d {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.875rem;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+.dark .input-3d {
+  background: #0d1424;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.input-3d:focus {
+  border-color: #10b981;
+  outline: none;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.05),
+    0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+/* ==========================================================================
+   4. GLASSMORPHISM & BLUR BACKDROPS
+   ========================================================================== */
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+.dark .glass-nav {
+  background: rgba(11, 17, 32, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 3D Floating Action Badge / Status */
+.badge-3d {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.625rem;
+  border: 1px solid transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
 }
