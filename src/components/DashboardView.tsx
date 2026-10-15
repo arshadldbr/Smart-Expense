@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
 import {
+  AlertTriangle,
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  ArrowUpRight,
-  ArrowDownLeft,
-  PiggyBank,
-  Wallet,
+  FileBarChart2,
   Landmark,
-  ArrowLeftRight,
-  TrendingUp,
-  AlertTriangle,
-  Sparkles,
+  PiggyBank,
   Plus,
   Receipt,
-  Calendar,
-  Star,
+  TrendingUp,
+  Wallet,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -23,11 +22,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
   CartesianGrid,
 } from 'recharts';
 import {
@@ -36,7 +30,6 @@ import {
   Category,
   CurrencyCode,
   SmartInsight,
-  UserProfile,
   ViewTab,
 } from '../types';
 import { formatMoney } from '../constants/currencies';
@@ -52,8 +45,7 @@ interface DashboardViewProps {
   insights: SmartInsight[];
   recentTransactions: Transaction[];
   categories: Category[];
-  profile: UserProfile;
-  onOpenAddModal: (prefillType?: any) => void;
+  onOpenAddModal: (prefillType?: 'expense' | 'income') => void;
   onSelectTransaction: (tx: Transaction) => void;
   setActiveTab: (tab: ViewTab) => void;
 }
@@ -67,24 +59,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   insights,
   recentTransactions,
   categories,
-  profile,
   onOpenAddModal,
   onSelectTransaction,
   setActiveTab,
 }) => {
-  const [showComparison, setShowComparison] = useState(false);
   const [previewReceiptTx, setPreviewReceiptTx] = useState<Transaction | null>(null);
-
-  // Parse display month name safely
-  const safeMonth =
-    selectedMonth && typeof selectedMonth === 'string' && selectedMonth.includes('-')
-      ? selectedMonth
-      : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-  const [year, month] = safeMonth.split('-');
-  const monthDate = new Date(parseInt(year, 10) || new Date().getFullYear(), (parseInt(month, 10) || 1) - 1, 1);
+  const safeMonth = selectedMonth && /^\d{4}-\d{2}$/.test(selectedMonth)
+    ? selectedMonth
+    : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+  const monthDate = new Date(`${safeMonth}-01T00:00:00`);
   const formattedMonth = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const previousLabel = previousSummary?.month
+    ? new Date(`${previousSummary.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : 'last month';
 
-  // Safeguard summary object
   const safeSummary: MonthlyFinancialSummary = summary || {
     month: safeMonth,
     totalIncome: 0,
@@ -103,713 +91,314 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     categorySummaries: [],
     dailySpending: [],
   };
-
   const safeCategories = Array.isArray(categories) ? categories : [];
   const safeTransactions = Array.isArray(recentTransactions) ? recentTransactions : [];
   const safeInsights = Array.isArray(insights) ? insights : [];
-  const safeCategorySummaries = Array.isArray(safeSummary.categorySummaries) ? safeSummary.categorySummaries : [];
-
-  // Category donut data
-  const pieData = safeCategorySummaries
-    .filter((c) => c && c.spent > 0)
-    .map((c) => ({
-      name: c.categoryName,
-      value: c.spent,
-      color: c.color,
-    }));
-
-  // Month-to-month comparison differences
-  const expenseDiff = previousSummary
-    ? safeSummary.totalExpenses - (previousSummary.totalExpenses || 0)
-    : 0;
-  const incomeDiff = previousSummary
-    ? safeSummary.totalIncome - (previousSummary.totalIncome || 0)
-    : 0;
+  const categoryRows = (safeSummary.categorySummaries || []).filter((item) => item && item.spent > 0).slice(0, 5);
+  const categoryCount = (safeSummary.categorySummaries || []).filter((item) => item && item.spent > 0).length;
+  const categoryMaximum = Math.max(1, ...categoryRows.map((item) => item.spent));
+  const netFlow = safeSummary.totalIncome - safeSummary.totalExpenses;
+  const budgetUse = Math.max(0, safeSummary.budgetUsedPercentage || 0);
+  const chartHasData = (safeSummary.dailySpending || []).some((day) => day.expense > 0 || day.income > 0);
 
   return (
-    <div id="dashboard-view" className="space-y-6 pb-12">
-      {/* Dashboard Top Header & Month Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+    <div id="dashboard-view" className="dashboard-view">
+      <section className="dashboard-heading">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Financial Dashboard</h1>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
-              {currency}
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Real-time balance, budgets, and automated spending analytics
-          </p>
+          <p className="section-kicker">MONEY, MADE CLEAR <span aria-hidden="true">/</span> {currency}</p>
+          <h1>Your money, in focus.</h1>
+          <p className="dashboard-subtitle">A calm read on what came in, what went out, and what’s still yours.</p>
         </div>
-
-        {/* Month selector controls */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-          <button
-            id="prev-month-btn"
-            onClick={() => onChangeMonth(-1)}
-            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
-            title="Previous Month"
-          >
-            <ChevronLeft className="w-4 h-4" />
+        <div className="dashboard-tools">
+          <button type="button" className="button-3d dashboard-add-button" onClick={() => onOpenAddModal()}>
+            <Plus aria-hidden="true" /><span>Record transaction</span>
           </button>
-          <span className="px-3 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 min-w-[130px] text-center">
-            {formattedMonth}
-          </span>
-          <button
-            id="next-month-btn"
-            onClick={() => onChangeMonth(1)}
-            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
-            title="Next Month"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Giant Star Centerpiece */}
-      <section
-        id="giant-star-centerpiece"
-        className="star-hero relative overflow-hidden rounded-[2rem] border border-emerald-200/70 dark:border-emerald-900/60 bg-slate-950 text-white shadow-2xl"
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.24),transparent_48%),radial-gradient(circle_at_15%_20%,rgba(45,212,191,0.14),transparent_30%)]" />
-        <div className="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-emerald-400/10 blur-3xl" />
-        <div className="absolute -right-16 -bottom-20 h-64 w-64 rounded-full bg-teal-300/10 blur-3xl" />
-
-        <div className="relative min-h-[310px] sm:min-h-[350px] flex items-center justify-center px-5 py-8">
-          <div className="star-orbit star-orbit-one" />
-          <div className="star-orbit star-orbit-two" />
-
-          <div className="star-side-stat star-side-left hidden sm:block">
-            <span>Total Income</span>
-            <strong>{formatMoney(safeSummary.totalIncome, currency)}</strong>
-          </div>
-
-          <div className="star-side-stat star-side-right hidden sm:block">
-            <span>Total Expenses</span>
-            <strong>{formatMoney(safeSummary.totalExpenses, currency)}</strong>
-          </div>
-
-          <div className="relative z-10 flex flex-col items-center text-center">
-            <div className="giant-star-shell" aria-label="Smart Expense Tracker star logo">
-              <div className="giant-star-glow" />
-              <Star className="giant-star-icon" strokeWidth={1.15} fill="currentColor" />
-              <div className="giant-star-inner-ring" />
-            </div>
-            <div className="mt-3">
-              <div className="text-[11px] uppercase tracking-[0.38em] text-emerald-300/80 font-semibold">
-                Smart Expense Tracker
-              </div>
-              <div className="mt-1 text-xl sm:text-2xl font-black tracking-tight">
-                Your Money. Your Control.
-              </div>
-              <div className="mt-1 text-xs text-slate-400">
-                {formattedMonth} <span className="mx-1 text-slate-600">•</span> {currency}
-              </div>
-            </div>
-          </div>
-
-          <div className="star-bottom-stat">
-            <span>Remaining Budget</span>
-            <strong>{formatMoney(safeSummary.remainingBudget, currency)}</strong>
+          <div className="month-switcher" aria-label="Choose reporting month">
+            <button id="prev-month-btn" type="button" onClick={() => onChangeMonth(-1)} aria-label="Previous month">
+              <ChevronLeft aria-hidden="true" />
+            </button>
+            <span>{formattedMonth}</span>
+            <button id="next-month-btn" type="button" onClick={() => onChangeMonth(1)} aria-label="Next month">
+              <ChevronRight aria-hidden="true" />
+            </button>
           </div>
         </div>
       </section>
 
-      {/* Quick Action Buttons Bar (PRD Section 42) */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        <button
-          id="quick-action-expense"
-          onClick={() => onOpenAddModal('expense')}
-          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/60 active:scale-95 transition-all"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add Expense</span>
-        </button>
-        <button
-          id="quick-action-income"
-          onClick={() => onOpenAddModal('income')}
-          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/60 active:scale-95 transition-all"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add Income</span>
-        </button>
-        <button
-          id="quick-action-savings"
-          onClick={() => setActiveTab('savings')}
-          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/60 active:scale-95 transition-all"
-        >
-          <PiggyBank className="w-3.5 h-3.5" />
-          <span>Savings Goals</span>
-        </button>
-        <button
-          id="quick-action-credit"
-          onClick={() => setActiveTab('credit_debit')}
-          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/60 active:scale-95 transition-all"
-        >
-          <ArrowLeftRight className="w-3.5 h-3.5" />
-          <span>Credit & Debit</span>
-        </button>
-        <button
-          id="quick-action-loan"
-          onClick={() => setActiveTab('loans')}
-          className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 text-purple-700 dark:text-purple-300 text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/60 active:scale-95 transition-all"
-        >
-          <Landmark className="w-3.5 h-3.5" />
-          <span>Loans</span>
-        </button>
-      </div>
-
-      {/* Summary Cards Grid (PRD Section 6) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-        {/* Income Card */}
-        <div
-          id="card-total-income"
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Income</span>
-            <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
-              <ArrowDownLeft className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-lg font-bold text-slate-900 dark:text-white truncate">
-              {formatMoney(safeSummary.totalIncome, currency)}
-            </div>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-              Inflows this month
-            </span>
-          </div>
-        </div>
-
-        {/* Expenses Card */}
-        <div
-          id="card-total-expenses"
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Expenses</span>
-            <div className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-lg font-bold text-slate-900 dark:text-white truncate">
-              {formatMoney(safeSummary.totalExpenses, currency)}
-            </div>
-            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">
-              Outflows this month
-            </span>
-          </div>
-        </div>
-
-        {/* Remaining Budget Card */}
-        <div
-          id="card-remaining-budget"
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Remaining Budget</span>
-            <div className={`p-1.5 rounded-lg ${safeSummary.isExceeded ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' : 'bg-teal-100 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400'}`}>
-              <Wallet className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className={`text-lg font-bold truncate ${safeSummary.isExceeded ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-              {formatMoney(safeSummary.remainingBudget, currency)}
-            </div>
-            <span className={`text-[10px] font-medium ${safeSummary.isExceeded ? 'text-rose-600' : 'text-slate-500 dark:text-slate-400'}`}>
-              {safeSummary.budgetLimit > 0 ? `${100 - safeSummary.budgetUsedPercentage}% left` : 'No budget set'}
-            </span>
-          </div>
-        </div>
-
-        {/* Savings Card */}
-        <div
-          id="card-savings"
-          onClick={() => setActiveTab('savings')}
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Savings</span>
-            <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-              <PiggyBank className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-lg font-bold text-slate-900 dark:text-white truncate">
-              {formatMoney(safeSummary.netSavings, currency)}
-            </div>
-            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
-              Saved this month
-            </span>
-          </div>
-        </div>
-
-        {/* Credit Card (Owed by user) */}
-        <div
-          id="card-credit"
-          onClick={() => setActiveTab('credit_debit')}
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between cursor-pointer hover:border-amber-300 dark:hover:border-amber-800 transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Credit (We Owe)</span>
-            <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
-              <ArrowLeftRight className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-lg font-bold text-amber-600 dark:text-amber-400 truncate">
-              {formatMoney(safeSummary.totalCredit, currency)}
-            </div>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-              Payables balance
-            </span>
-          </div>
-        </div>
-
-        {/* Debit Card (Owed to user) */}
-        <div
-          id="card-debit"
-          onClick={() => setActiveTab('credit_debit')}
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between cursor-pointer hover:border-cyan-300 dark:hover:border-cyan-800 transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Debit (To Receive)</span>
-            <div className="p-1.5 rounded-lg bg-cyan-100 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400">
-              <Wallet className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-lg font-bold text-cyan-600 dark:text-cyan-400 truncate">
-              {formatMoney(safeSummary.totalDebit, currency)}
-            </div>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-              Receivables balance
-            </span>
-          </div>
-        </div>
-
-        {/* Outstanding Loans Card */}
-        <div
-          id="card-loans"
-          onClick={() => setActiveTab('loans')}
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between cursor-pointer hover:border-purple-300 dark:hover:border-purple-800 transition-colors col-span-2 sm:col-span-1"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Loans Balance</span>
-            <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
-              <Landmark className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-lg font-bold text-purple-600 dark:text-purple-400 truncate">
-              {formatMoney(safeSummary.outstandingLoans, currency)}
-            </div>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-              Active principal
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Budget Progress Bar & Warning Banner (PRD Section 7) */}
-      <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                Monthly Budget Utilization
-              </h2>
-              {safeSummary.isExceeded && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-400 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> Exceeded!
-                </span>
-              )}
-              {safeSummary.isWarn90 && !safeSummary.isExceeded && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> Critical (90%+)
-                </span>
-              )}
-              {safeSummary.isWarn75 && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400">
-                  75% Consumed
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {formatMoney(safeSummary.totalExpenses, currency)} spent of {formatMoney(safeSummary.budgetLimit, currency)} total limit
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-              {safeSummary.budgetUsedPercentage}% Used
-            </span>
-            <button
-              onClick={() => setActiveTab('budget')}
-              className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
-            >
-              Manage Budget →
-            </button>
-          </div>
-        </div>
-
-        {/* Dynamic Progress Bar */}
-        <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              safeSummary.isExceeded
-                ? 'bg-rose-500'
-                : safeSummary.budgetUsedPercentage >= 90
-                ? 'bg-amber-500'
-                : safeSummary.budgetUsedPercentage >= 75
-                ? 'bg-yellow-500'
-                : 'bg-emerald-500'
-            }`}
-            style={{ width: `${Math.min(100, safeSummary.budgetUsedPercentage)}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Smart Financial Insights (PRD Section 27) */}
-      {safeInsights.length > 0 && (
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-emerald-50/40 dark:from-slate-900 dark:to-emerald-950/20 border border-slate-200 dark:border-slate-800 space-y-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-              Smart Financial Insights
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {safeInsights.map((insight) => (
-              <div
-                key={insight.id}
-                className="p-3.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 shadow-sm"
-              >
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  {insight.title}
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {insight.message}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Analytics Charts (PRD Section 18) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Income vs Expenses Chart */}
-        <div className="lg:col-span-2 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                Daily Income vs Expenses
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Daily cash movements in {formattedMonth}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-                <span className="text-slate-600 dark:text-slate-400">Income</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
-                <span className="text-slate-600 dark:text-slate-400">Expense</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="h-64 w-full">
-            {safeSummary.dailySpending && safeSummary.dailySpending.some((d) => d.expense > 0 || d.income > 0) ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={safeSummary.dailySpending} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                  <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v > 999 ? `${(v / 1000).toFixed(0)}k` : v}`} />
-                  <Tooltip
-                    formatter={(val: any) => formatMoney(Number(val) || 0, currency)}
-                    labelFormatter={(label) => `Day ${label}`}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                  />
-                  <Bar dataKey="income" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
-                <p>No financial activity recorded for {formattedMonth}.</p>
-                <button
-                  onClick={() => onOpenAddModal('expense')}
-                  className="mt-2 text-emerald-600 font-semibold hover:underline"
-                >
-                  + Add First Transaction
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Expense Category Donut Chart */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-1">
-              Category Spending Breakdown
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Distribution of your monthly expenses
-            </p>
-          </div>
-
-          <div className="h-52 w-full my-2">
-            {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    innerRadius={50}
-                    outerRadius={75}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val: any) => formatMoney(Number(val) || 0, currency)}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-slate-400 text-xs text-center">
-                No expense data available for this month.
-              </div>
-            )}
-          </div>
-
-          {/* Top 3 categories mini-legend */}
-          <div className="space-y-1.5 border-t border-slate-100 dark:border-slate-800 pt-3">
-            {safeCategorySummaries.slice(0, 3).map((cat) => (
-              <div key={cat.categoryId} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-2 truncate">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                  <span className="text-slate-700 dark:text-slate-300 truncate">{cat.categoryName}</span>
-                </span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {formatMoney(cat.spent, currency)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Month-over-Month Comparison Card (PRD Section 46) */}
-      {previousSummary && (
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                Month-over-Month Performance
-              </h2>
-            </div>
-            <button
-              id="toggle-comparison-btn"
-              onClick={() => setShowComparison(!showComparison)}
-              className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
-            >
-              {showComparison ? 'Hide Comparison' : 'View Comparison'}
-            </button>
-          </div>
-
-          {showComparison && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[11px] font-medium text-slate-500">Expenses Comparison</span>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-base font-bold text-slate-900 dark:text-white">
-                    {formatMoney(safeSummary.totalExpenses, currency)}
-                  </span>
-                  <span className={`text-xs font-semibold ${expenseDiff > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                    {expenseDiff > 0 ? `+${formatMoney(expenseDiff, currency)}` : `${formatMoney(expenseDiff, currency)}`}
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-400">
-                  vs {formatMoney(previousSummary?.totalExpenses || 0, currency)} prev month
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[11px] font-medium text-slate-500">Income Comparison</span>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-base font-bold text-slate-900 dark:text-white">
-                    {formatMoney(safeSummary.totalIncome, currency)}
-                  </span>
-                  <span className={`text-xs font-semibold ${incomeDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {incomeDiff >= 0 ? `+${formatMoney(incomeDiff, currency)}` : `${formatMoney(incomeDiff, currency)}`}
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-400">
-                  vs {formatMoney(previousSummary?.totalIncome || 0, currency)} prev month
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[11px] font-medium text-slate-500">Net Month Surplus</span>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-base font-bold text-slate-900 dark:text-white">
-                    {formatMoney(safeSummary.totalIncome - safeSummary.totalExpenses, currency)}
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-400">
-                  Income minus expenses for this period
-                </span>
-              </div>
+      <section className="cashflow-hero" aria-labelledby="cashflow-title">
+        <div className="cashflow-main">
+          <p className="cashflow-label" id="cashflow-title">NET CASH FLOW <span>{formattedMonth}</span></p>
+          <p className={`cashflow-amount${netFlow < 0 ? ' is-negative' : ''}`}>{formatMoney(netFlow, currency)}</p>
+          <p className="cashflow-caption">Income minus expenses for this period</p>
+          {previousSummary && (
+            <div className={`cashflow-comparison${netFlow >= previousSummary.totalIncome - previousSummary.totalExpenses ? ' is-positive' : ''}`}>
+              <TrendingUp aria-hidden="true" />
+              <span>Compared with {previousLabel}</span>
             </div>
           )}
         </div>
+        <div className="hero-rule" aria-hidden="true" />
+        <div className="budget-glance">
+          <div className="budget-glance-top">
+            <span className="budget-glance-icon"><Wallet aria-hidden="true" /></span>
+            <span className="budget-glance-status">
+              {safeSummary.isExceeded ? 'Over budget' : safeSummary.budgetLimit > 0 ? 'Monthly budget' : 'Set a budget'}
+            </span>
+          </div>
+          <div className="budget-glance-amount">
+            {safeSummary.budgetLimit > 0 ? formatMoney(safeSummary.remainingBudget, currency) : '—'}
+          </div>
+          <div className="budget-progress-track" role="progressbar" aria-label="Budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round(budgetUse))}>
+            <span className={safeSummary.isExceeded ? 'is-over' : ''} style={{ width: `${Math.min(100, budgetUse)}%` }} />
+          </div>
+          <div className="budget-glance-footer">
+            <span>{formatMoney(safeSummary.totalExpenses, currency)} spent</span>
+            <span>{safeSummary.budgetLimit > 0 ? `${Math.round(budgetUse)}% used` : 'No limit set'}</span>
+          </div>
+          <button type="button" className="text-action" onClick={() => setActiveTab('budget')}>Review budget <ChevronRight aria-hidden="true" /></button>
+        </div>
+      </section>
+
+      <section className="metric-strip" aria-label="Monthly totals">
+        <article className="metric-card metric-income">
+          <div className="metric-heading"><span className="metric-icon"><ArrowDownLeft aria-hidden="true" /></span><span>Money in</span></div>
+          <strong>{formatMoney(safeSummary.totalIncome, currency)}</strong>
+          <small>Recorded income</small>
+        </article>
+        <article className="metric-card metric-expense">
+          <div className="metric-heading"><span className="metric-icon"><ArrowUpRight aria-hidden="true" /></span><span>Money out</span></div>
+          <strong>{formatMoney(safeSummary.totalExpenses, currency)}</strong>
+          <small>Recorded spending</small>
+        </article>
+        <article className="metric-card metric-savings">
+          <div className="metric-heading"><span className="metric-icon"><PiggyBank aria-hidden="true" /></span><span>Saved</span></div>
+          <strong>{formatMoney(safeSummary.netSavings, currency)}</strong>
+          <small>Net savings this month</small>
+        </article>
+      </section>
+
+      {(safeSummary.isExceeded || safeSummary.isWarn90 || safeSummary.isWarn75) && (
+        <div className={`budget-alert${safeSummary.isExceeded ? ' is-over' : ''}`} role="status">
+          <AlertTriangle aria-hidden="true" />
+          <span>
+            {safeSummary.isExceeded
+              ? 'You’ve passed this month’s budget. Review the category breakdown to see where it moved.'
+              : `You’ve used ${Math.round(budgetUse)}% of this month’s budget.`}
+          </span>
+          <button type="button" onClick={() => setActiveTab('budget')}>Open budget</button>
+        </div>
       )}
 
-      {/* Recent Transactions Preview Section */}
-      <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-              Recent Transactions
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Latest financial activity recorded
-            </p>
+      <div className="dashboard-chart-grid">
+        <section className="ledger-panel cashflow-chart-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="section-kicker">DAY BY DAY</p>
+              <h2>Cash flow</h2>
+            </div>
+            <div className="chart-legend" aria-label="Chart legend">
+              <span><i className="legend-income" />Income</span>
+              <span><i className="legend-expense" />Expenses</span>
+            </div>
           </div>
-          <button
-            onClick={() => setActiveTab('transactions')}
-            className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
-          >
-            View All History →
-          </button>
-        </div>
+          <p className="panel-description">Daily movement during {formattedMonth}</p>
+          <div className="cashflow-chart">
+            {chartHasData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={safeSummary.dailySpending} margin={{ top: 10, right: 4, left: -18, bottom: 0 }} barGap={3}>
+                  <CartesianGrid vertical={false} stroke="var(--chart-grid)" strokeDasharray="3 5" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-label)', fontSize: 11 }} tickMargin={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--chart-label)', fontSize: 10 }} tickFormatter={(value) => `${value > 999 ? `${(value / 1000).toFixed(0)}k` : value}`} />
+                  <Tooltip
+                    formatter={(value: any) => formatMoney(Number(value) || 0, currency)}
+                    labelFormatter={(label) => `Day ${label}`}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid var(--panel-border)', background: 'var(--surface)', color: 'var(--ink)', boxShadow: '0 12px 28px rgba(20,35,29,.12)' }}
+                  />
+                  <Bar dataKey="income" name="Income" fill="#2f8c67" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                  <Bar dataKey="expense" name="Expenses" fill="#d58a66" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="chart-empty-state">
+                <span className="empty-ledger-mark"><Receipt aria-hidden="true" /></span>
+                <strong>No movement recorded yet</strong>
+                <span>Add a transaction to see your daily pattern.</span>
+                <button type="button" className="text-action" onClick={() => onOpenAddModal('expense')}>Add the first entry <ChevronRight aria-hidden="true" /></button>
+              </div>
+            )}
+          </div>
+        </section>
 
-        {safeTransactions.length > 0 ? (
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {safeTransactions.slice(0, 5).map((tx) => {
-              const cat = safeCategories.find((c) => c && c.id === tx.categoryId);
-              const isIncome = tx.type === 'income';
-              const isExpense = tx.type === 'expense' || tx.type === 'loan_repayment';
-              return (
-                <div
-                  key={tx.id}
-                  id={`recent-tx-${tx.id}`}
-                  onClick={() => onSelectTransaction(tx)}
-                  className="py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-xl cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: `${cat?.color || '#64748b'}20` }}
-                    >
-                      <CategoryIcon
-                        iconName={cat?.icon || 'HelpCircle'}
-                        className="w-5 h-5"
-                        color={cat?.color || '#64748b'}
-                      />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <span className="truncate max-w-[180px] sm:max-w-xs">{tx.description}</span>
-                        {tx.receiptUrl && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPreviewReceiptTx(tx);
-                            }}
-                            className="p-0.5 rounded text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors"
-                            title="Click to zoom receipt & download PNG"
-                          >
-                            <Receipt className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                        <span>{cat?.name || 'General'}</span>
-                        <span>•</span>
-                        <span>{tx.date}</span>
-                        <span>•</span>
-                        <span>{tx.paymentMethod}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <span
-                      className={`text-xs font-bold ${
-                        isIncome
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : isExpense
-                          ? 'text-rose-600 dark:text-rose-400'
-                          : 'text-indigo-600 dark:text-indigo-400'
-                      }`}
-                    >
-                      {isIncome ? '+' : '-'}{formatMoney(tx.amount, currency)}
+        <section className="ledger-panel category-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="section-kicker">SPENDING MIX</p>
+              <h2>Where it went</h2>
+            </div>
+            <span className="category-count">{categoryCount} categories</span>
+          </div>
+          <p className="panel-description">Largest expense categories this month</p>
+          {categoryRows.length ? (
+            <div className="category-list">
+              {categoryRows.map((item) => (
+                <div className="category-row" key={item.categoryId}>
+                  <div className="category-row-top">
+                    <span className="category-name">
+                      <span className="category-mark" style={{ backgroundColor: `${item.color || '#638072'}20` }}>
+                        <CategoryIcon iconName={item.icon || 'CircleHelp'} className="w-4 h-4" color={item.color || '#638072'} />
+                      </span>
+                      <span>{item.categoryName}</span>
                     </span>
-                    <div className="text-[10px] text-slate-400 uppercase font-semibold">
-                      {tx.type.replace('_', ' ')}
-                    </div>
+                    <strong>{formatMoney(item.spent, currency)}</strong>
                   </div>
+                  <div className="category-progress"><span style={{ width: `${Math.max(4, (item.spent / categoryMaximum) * 100)}%`, backgroundColor: item.color || '#638072' }} /></div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          ) : (
+            <div className="category-empty">Category totals will appear once expenses are recorded.</div>
+          )}
+          <button type="button" className="panel-link" onClick={() => setActiveTab('reports')}>Explore reports <ChevronRight aria-hidden="true" /></button>
+        </section>
+      </div>
+
+      <div className="dashboard-lower-grid">
+        <section className="ledger-panel activity-panel">
+          <div className="panel-heading activity-heading">
+            <div>
+              <p className="section-kicker">LATEST ENTRIES</p>
+              <h2>Recent activity</h2>
+            </div>
+            <button type="button" className="panel-link" onClick={() => setActiveTab('transactions')}>All transactions <ChevronRight aria-hidden="true" /></button>
           </div>
-        ) : (
-          <div className="py-8 text-center text-slate-400 text-xs">
-            <p>No transactions yet for this period.</p>
-            <button
-              onClick={() => onOpenAddModal('expense')}
-              className="mt-2 text-emerald-600 font-semibold hover:underline"
-            >
-              + Start tracking your first expense
-            </button>
+          {safeTransactions.length > 0 ? (
+            <div className="recent-list">
+              {safeTransactions.slice(0, 5).map((transaction) => {
+                const category = safeCategories.find((item) => item?.id === transaction.categoryId);
+                const isIncome = transaction.type === 'income';
+                const isOutflow = transaction.type === 'expense' || transaction.type === 'loan_repayment';
+                const sign = isIncome ? '+' : isOutflow ? '−' : '';
+                const txDate = new Date(`${transaction.date}T00:00:00`);
+                return (
+                  <div className="recent-entry-shell" key={transaction.id}>
+                    <button
+                      type="button"
+                      id={`recent-tx-${transaction.id}`}
+                      className="recent-row"
+                      onClick={() => onSelectTransaction(transaction)}
+                      aria-label={`Edit ${transaction.description}, ${formatMoney(transaction.amount, currency)}`}
+                    >
+                      <span className="recent-category-icon" style={{ backgroundColor: `${category?.color || '#638072'}18` }}>
+                        <CategoryIcon iconName={category?.icon || 'CircleHelp'} className="w-4 h-4" color={category?.color || '#638072'} />
+                      </span>
+                      <span className="recent-description">
+                        <strong>{transaction.description || category?.name || 'Transaction'}</strong>
+                        <small>{category?.name || 'General'} <span aria-hidden="true">·</span> {Number.isNaN(txDate.getTime()) ? transaction.date : txDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</small>
+                      </span>
+                      <span className={`recent-amount${isIncome ? ' is-income' : isOutflow ? ' is-outflow' : ''}`}>
+                        <strong>{sign}{formatMoney(transaction.amount, currency)}</strong>
+                        <small>{transaction.type.replace('_', ' ')}</small>
+                      </span>
+                    </button>
+                    {transaction.receiptUrl && (
+                      <button
+                        type="button"
+                        className="recent-receipt-action"
+                        onClick={() => setPreviewReceiptTx(transaction)}
+                        aria-label={`Preview receipt for ${transaction.description || 'transaction'}`}
+                        title="Preview receipt and download PNG"
+                      >
+                        <Receipt aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="activity-empty">
+              <span>No entries yet for {formattedMonth}.</span>
+              <button type="button" className="text-action" onClick={() => onOpenAddModal('expense')}><Plus aria-hidden="true" />Record an expense</button>
+            </div>
+          )}
+        </section>
+
+        <section className="ledger-panel obligations-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="section-kicker">OUTSTANDING</p>
+              <h2>Money in motion</h2>
+            </div>
+            <ArrowLeftRight className="panel-heading-icon" aria-hidden="true" />
           </div>
+          <button type="button" className="obligation-row" onClick={() => setActiveTab('credit_debit')}>
+            <span className="obligation-icon obligation-payable"><ArrowUpRight aria-hidden="true" /></span>
+            <span className="obligation-label"><strong>To pay</strong><small>Credit balance</small></span>
+            <strong className="obligation-amount">{formatMoney(safeSummary.totalCredit, currency)}</strong>
+            <ChevronRight aria-hidden="true" />
+          </button>
+          <button type="button" className="obligation-row" onClick={() => setActiveTab('credit_debit')}>
+            <span className="obligation-icon obligation-receivable"><ArrowDownLeft aria-hidden="true" /></span>
+            <span className="obligation-label"><strong>To receive</strong><small>Debit balance</small></span>
+            <strong className="obligation-amount">{formatMoney(safeSummary.totalDebit, currency)}</strong>
+            <ChevronRight aria-hidden="true" />
+          </button>
+          <button type="button" className="obligation-row" onClick={() => setActiveTab('loans')}>
+            <span className="obligation-icon obligation-loan"><Landmark aria-hidden="true" /></span>
+            <span className="obligation-label"><strong>Loan balance</strong><small>Active principal</small></span>
+            <strong className="obligation-amount">{formatMoney(safeSummary.outstandingLoans, currency)}</strong>
+            <ChevronRight aria-hidden="true" />
+          </button>
+          <button type="button" className="panel-link obligation-link" onClick={() => setActiveTab('calendar')}><CalendarDays aria-hidden="true" />View upcoming dates <ChevronRight aria-hidden="true" /></button>
+        </section>
+      </div>
+
+      <div className="dashboard-bottom-grid">
+        {safeInsights.length > 0 && (
+          <section className="ledger-panel insights-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="section-kicker">PATTERNS TO NOTICE</p>
+                <h2>Personal insights</h2>
+              </div>
+              <TrendingUp className="panel-heading-icon" aria-hidden="true" />
+            </div>
+            <div className="insight-list">
+              {safeInsights.slice(0, 3).map((insight) => (
+                <article className={`insight-item insight-${insight.type}`} key={insight.id}>
+                  <span className="insight-dot" aria-hidden="true" />
+                  <div><strong>{insight.title}</strong><p>{insight.message}</p></div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {previousSummary && (
+          <section className="ledger-panel comparison-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="section-kicker">MONTH TO MONTH</p>
+                <h2>Progress, not noise</h2>
+              </div>
+              <FileBarChart2 className="panel-heading-icon" aria-hidden="true" />
+            </div>
+            <div className="comparison-row">
+              <span>Spending</span>
+              <strong className={safeSummary.totalExpenses <= previousSummary.totalExpenses ? 'comparison-good' : 'comparison-watch'}>
+                {safeSummary.totalExpenses <= previousSummary.totalExpenses ? '↓ ' : '↑ '}{formatMoney(Math.abs(safeSummary.totalExpenses - previousSummary.totalExpenses), currency)}
+              </strong>
+            </div>
+            <div className="comparison-row">
+              <span>Income</span>
+              <strong className={safeSummary.totalIncome >= previousSummary.totalIncome ? 'comparison-good' : 'comparison-watch'}>
+                {safeSummary.totalIncome >= previousSummary.totalIncome ? '↑ ' : '↓ '}{formatMoney(Math.abs(safeSummary.totalIncome - previousSummary.totalIncome), currency)}
+              </strong>
+            </div>
+            <p className="comparison-caption">Change compared with {previousLabel}</p>
+          </section>
         )}
       </div>
-
-      {/* Dashboard Bottom Branding Badge */}
-      <div
-        id="dashboard-branding-credit"
-        className="mt-4 p-3 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-600 dark:text-slate-400 transition-colors shadow-xs"
-      >
-        <span>
-          Developed by{' '}
-          <strong className="font-semibold text-slate-800 dark:text-slate-200">
-            A.K.A Tech
-          </strong>
-          , A company by{' '}
-          <strong className="font-semibold text-slate-800 dark:text-slate-200">
-            Arshad Khan Aastik
-          </strong>
-        </span>
-        <span className="mx-1.5 text-slate-400">•</span>
-        <span>
-          Whatsapp:{' '}
-          <a
-            href="https://wa.me/923149891182"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
-          >
-            +923149891182
-          </a>
-        </span>
-      </div>
-
-      {/* High-Resolution Zoom & PNG Download Modal */}
       {previewReceiptTx && (
         <ReceiptModal
           isOpen={Boolean(previewReceiptTx)}

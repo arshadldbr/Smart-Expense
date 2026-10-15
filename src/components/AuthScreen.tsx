@@ -111,10 +111,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isDark, onToggleTheme })
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="auth-shell">
       {/* Top Header bar with Logo and Theme toggle */}
-      <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md py-3.5 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+      <header className="auth-topbar">
+        <div className="auth-topbar-inner">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-sm font-bold text-lg tracking-tight">
               ₨
@@ -140,12 +140,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isDark, onToggleTheme })
         </div>
       </header>
 
-      {/* Main Form Center Box */}
-      <main className="flex-1 flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none p-6 sm:p-8">
+      <main className="auth-main">
+        <div className="auth-layout">
+          <section className="auth-story" aria-label="About your finance workspace">
+            <p className="section-kicker">A BETTER VIEW OF YOUR MONEY</p>
+            <h1>Your finances,<br />without the fog.</h1>
+            <p>A clear, private place to record spending, plan budgets, and keep your savings goals within reach.</p>
+            <div className="auth-value-list">
+              <div className="auth-value-item"><CheckCircle2 aria-hidden="true" /><span>See money in, money out, and what remains</span></div>
+              <div className="auth-value-item"><CheckCircle2 aria-hidden="true" /><span>Keep budgets, goals, loans, and due dates together</span></div>
+              <div className="auth-value-item"><CheckCircle2 aria-hidden="true" /><span>Your records stay scoped to your account</span></div>
+            </div>
+            <div className="auth-private-note">Email sign-in protects your workspace, with private cloud sync and a local copy available on this device.</div>
+          </section>
+          <div className="auth-form-wrap">
+        <div className="auth-card w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none p-6 sm:p-8">
           {/* Card Title */}
-          <div className="text-center mb-6">
-            <div className="inline-flex p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400 mb-3 shadow-xs">
+          <div className="auth-card-title text-center mb-6">
+            <div className="auth-title-icon inline-flex p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400 mb-3 shadow-xs">
               <ShieldCheck className="w-7 h-7" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
@@ -325,7 +337,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isDark, onToggleTheme })
               type="submit"
               id="auth-submit-btn"
               disabled={loading}
-              className="w-full mt-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-emerald-600/25 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+              className="button-3d w-full mt-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-emerald-600/25 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <>
@@ -372,6 +384,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isDark, onToggleTheme })
                 </button>
               </p>
             )}
+          </div>
+        </div>
           </div>
         </div>
       </main>
@@ -449,8 +463,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isDark, onToggleTheme })
       )}
 
       {/* Footer Branding */}
-      <footer className="w-full border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 py-4 px-4 sm:px-6 transition-colors">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left text-xs text-slate-600 dark:text-slate-400">
+      <footer className="auth-footer">
+        <div className="auth-footer-inner">
           <div>
             <span>Developed by <strong className="font-semibold text-slate-900 dark:text-white">A.K.A Tech</strong>, A company by <strong className="font-semibold text-slate-900 dark:text-white">Arshad Khan Aastik</strong></span>
           </div>

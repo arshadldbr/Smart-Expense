@@ -523,8 +523,7 @@ function MainTrackerApp({
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      {/* Navigation Header */}
+    <div className={`app-shell min-h-screen text-slate-900 dark:text-slate-100 transition-colors duration-200 ${isDark ? 'theme-dark' : 'theme-light'}`}>
       <Navigation
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -533,7 +532,6 @@ function MainTrackerApp({
           setIsAddTxModalOpen(true);
         }}
         profile={profile}
-        selectedMonth={selectedMonth}
         onToggleTheme={onToggleTheme}
         isDark={isDark}
         onSelectCurrency={(cur) => handleUpdateProfile({ defaultCurrency: cur, currency: cur })}
@@ -541,26 +539,20 @@ function MainTrackerApp({
         onLogout={logout}
       />
 
-      <div
-        role="status"
-        aria-live="polite"
-        className={`px-4 py-2 text-center text-xs font-medium ${
-          syncStatus === 'error'
-            ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
-            : syncStatus === 'offline'
-              ? 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300'
-              : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
-        }`}
-      >
-        {syncStatus === 'saving' && 'Saving changes to your cloud account…'}
-        {syncStatus === 'syncing' && 'Syncing your private account data…'}
-        {syncStatus === 'saved' && 'Cloud sync is up to date.'}
-        {syncStatus === 'offline' && 'Offline — your browser-local copy is retained; cloud sync may be pending.'}
-        {syncStatus === 'error' && (syncError || 'Cloud sync failed. Your browser-local copy is retained; the change is not confirmed in Firestore.')}
-      </div>
+      <div className="app-workspace">
+        <div role="status" aria-live="polite" className={`sync-strip sync-strip-${syncStatus}`}>
+          <span className="sync-dot" aria-hidden="true" />
+          <span>
+            {syncStatus === 'saving' && 'Saving changes to your cloud account…'}
+            {syncStatus === 'syncing' && 'Syncing your private account data…'}
+            {syncStatus === 'loading' && 'Loading your account data…'}
+            {syncStatus === 'saved' && 'Your cloud copy is up to date.'}
+            {syncStatus === 'offline' && 'Offline — your browser-local copy is retained; cloud sync may be pending.'}
+            {syncStatus === 'error' && (syncError || 'Cloud sync failed. Your browser-local copy is retained; the change is not confirmed in Firestore.')}
+          </span>
+        </div>
 
-      {/* Main Content Viewport */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 sm:pb-10">
+      <main id="main-content" className="app-main">
         {activeTab === 'dashboard' && (
           <DashboardView
             summary={monthlySummary}
@@ -571,7 +563,6 @@ function MainTrackerApp({
             insights={insights}
             recentTransactions={transactions.slice(0, 8)}
             categories={categories}
-            profile={profile}
             onOpenAddModal={() => {
               setEditingTransaction(null);
               setIsAddTxModalOpen(true);
@@ -686,36 +677,8 @@ function MainTrackerApp({
           />
         )}
       </main>
-
-      {/* Application Footer */}
-      <footer
-        id="app-branding-footer"
-        className="w-full border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md mt-auto py-6 px-4 sm:px-6 lg:px-8 pb-24 lg:pb-6 transition-colors shadow-xs"
-      >
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-slate-600 dark:text-slate-400">
-          <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
-            <span className="font-semibold text-slate-800 dark:text-slate-200">
-              Smart Expense Tracker
-            </span>
-            <span className="hidden sm:inline text-slate-400">•</span>
-            <span>
-              Developed by <strong className="font-semibold text-slate-900 dark:text-white">A.K.A Tech</strong>, A company by <strong className="font-semibold text-slate-900 dark:text-white">Arshad Khan Aastik</strong>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span>Whatsapp:</span>
-            <a
-              href="https://wa.me/923149891182"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/70 transition-colors"
-            >
-              +923149891182
-            </a>
-          </div>
-        </div>
-      </footer>
+        <footer className="app-footer">Your financial records remain private to your signed-in account.</footer>
+      </div>
 
       {/* Add / Edit Transaction Modal */}
       <AddTransactionModal
