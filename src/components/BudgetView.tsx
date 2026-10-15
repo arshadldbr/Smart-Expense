@@ -77,12 +77,12 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   return (
     <div id="budget-view" className="space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 panel-3d p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">
             Budget Management ({formattedMonth})
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Configure spending limits and monitor category consumption thresholds
           </p>
         </div>
@@ -95,7 +95,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
               setTotalBudgetInput(budget.totalBudget.toString());
               setIsEditingTotal(true);
             }}
-            className="btn-3d btn-3d-secondary px-3.5 py-2 text-xs gap-1.5 self-start sm:self-auto"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors self-start sm:self-auto"
           >
             <Edit3 className="w-3.5 h-3.5" />
             <span>Set Overall Budget</span>
@@ -106,21 +106,21 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
               type="number"
               value={totalBudgetInput}
               onChange={(e) => setTotalBudgetInput(e.target.value)}
-              className="w-32 py-1.5 px-2.5 rounded-lg text-xs font-bold input-3d"
+              className="w-32 py-1.5 px-2.5 rounded-lg text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none"
               autoFocus
             />
             <button
               onClick={handleSaveTotalBudget}
-              className="btn-3d btn-3d-emerald p-2"
+              className="p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
             >
-              <Check className="w-4 h-4 stroke-[3]" />
+              <Check className="w-4 h-4" />
             </button>
           </div>
         )}
       </div>
 
       {/* Main Budget Card Overview */}
-      <div className="panel-3d p-6 space-y-5">
+      <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
             <span className="text-[11px] font-bold text-slate-400 uppercase">Total Monthly Limit</span>
