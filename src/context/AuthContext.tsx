@@ -17,6 +17,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  continueAsGuest: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,8 +27,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    let resolved = false;
+
+    // Safety timeout: Never leave the UI stuck in loading if Firebase auth is offline or partitioned
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        setLoading(false);
+      }
+    }, 1500);
+
     // Listen for Firebase Auth state changes
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      resolved = true;
+      clearTimeout(timer);
       try {
         if (currentUser) {
           storageService.initForUser(
@@ -47,7 +59,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -92,8 +107,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const continueAsGuest = () => {
+    const guestUser = {
+      uid: 'guest_user',
+      email: 'guest@smartexpense.app',
+      displayName: 'Guest (Demo)',
+      emailVerified: true,
+      isAnonymous: true,
+      metadata: {},
+      providerData: [],
+      refreshToken: '',
+      tenantId: null,
+      delete: async () => {},
+      getIdToken: async () => '',
+      getIdTokenResult: async () => ({} as any),
+      reload: async () => {},
+      toJSON: () => ({}),
+      phoneNumber: null,
+      photoURL: null,
+      providerId: 'demo',
+    } as unknown as User;
+    storageService.initForUser('guest_user', 'guest@smartexpense.app', 'Guest (Demo)');
+    setUser(guestUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, logout, resetPassword }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, logout, resetPassword, continueAsGuest }}>
       {children}
     </AuthContext.Provider>
   );

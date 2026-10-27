@@ -22,7 +22,7 @@ interface AuthScreenProps {
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ isDark, onToggleTheme }) => {
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword, continueAsGuest } = useAuth();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -384,6 +384,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isDark, onToggleTheme })
                 </button>
               </p>
             )}
+          </div>
+
+          {/* Quick Preview / Guest Access */}
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+            <button
+              type="button"
+              onClick={continueAsGuest}
+              className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Explore as Guest (Instant Preview)</span>
+              <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
           </div>
         </div>
           </div>
