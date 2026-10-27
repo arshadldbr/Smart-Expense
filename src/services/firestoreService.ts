@@ -1,8 +1,6 @@
 import {
   collection,
   doc,
-  getDoc,
-  getDocs,
   onSnapshot,
   serverTimestamp,
   setDoc,
@@ -17,8 +15,6 @@ import { db } from './firebase';
 import {
   diffRecords,
   getCollectionRecordId,
-  mergeLocalData,
-  mergeRemoteAndLocalData,
   sortTransactionsNewestFirst,
   toFirestoreDocumentId,
   type PartialTrackerData,
@@ -32,11 +28,6 @@ export interface UserSyncCallbacks {
   onData: (data: TrackerData) => void;
   onStatus: (status: SyncStatus, message?: string) => void;
   onReady: () => void;
-}
-
-interface RemoteUserData {
-  data: PartialTrackerData;
-  hasProfile: boolean;
 }
 
 interface BatchOperation {
@@ -91,29 +82,6 @@ function profileFromDocument(data: DocumentData): UserProfile {
   return withoutServerMetadata(data) as UserProfile;
 }
 
-async function readRemoteUserData(uid: string): Promise<RemoteUserData> {
-  const profileRef = doc(db, 'users', uid);
-  const collectionRefs = COLLECTIONS.map((name) => collection(db, 'users', uid, name));
-  const [profileSnapshot, ...collectionSnapshots] = await Promise.all([
-    getDoc(profileRef),
-    ...collectionRefs.map((reference) => getDocs(reference)),
-  ]);
-
-  const [transactions, categories, budgetDocs, savingsGoals, creditDebitRecords, loans] = collectionSnapshots;
-  return {
-    hasProfile: profileSnapshot.exists(),
-    data: {
-      profile: profileSnapshot.exists() ? profileFromDocument(profileSnapshot.data()) : undefined,
-      transactions: documentsFromSnapshot(transactions),
-      categories: documentsFromSnapshot<Category & { id: string }>(categories),
-      budgets: budgetsFromSnapshot(budgetDocs),
-      savingsGoals: documentsFromSnapshot(savingsGoals),
-      creditDebitRecords: documentsFromSnapshot(creditDebitRecords),
-      loans: documentsFromSnapshot(loans),
-    },
-  };
-}
-
 function recordsForCollection(
   collectionName: UserDataCollection,
   data: PartialTrackerData
@@ -155,51 +123,6 @@ async function commitOperations(operations: BatchOperation[]): Promise<void> {
   }
 }
 
-function buildMigrationOperations(uid: string, remote: RemoteUserData, local: TrackerData): BatchOperation[] {
-  const operations: BatchOperation[] = [];
-  if (!remote.hasProfile) {
-    const profileData = cleanFirestoreValue(local.profile) as DocumentData;
-    operations.push({
-      type: 'set',
-      path: ['users', uid],
-      data: {
-        ...profileData,
-        userId: uid,
-        createdAtServer: serverTimestamp(),
-        updatedAtServer: serverTimestamp(),
-      },
-    });
-  }
-
-  for (const collectionName of COLLECTIONS) {
-    const localRecords = recordsForCollection(collectionName, local);
-    const remoteRecords = recordsForCollection(collectionName, remote.data);
-    const remoteIds = new Set<string>();
-    for (const record of remoteRecords) {
-      try {
-        remoteIds.add(getCollectionRecordId(collectionName, record));
-      } catch {
-        // Ignore malformed remote records; they remain untouched in Firestore.
-      }
-    }
-
-    for (const record of localRecords) {
-      try {
-        const id = getCollectionRecordId(collectionName, record);
-        if (remoteIds.has(id)) continue;
-        operations.push({
-          type: 'set',
-          path: recordPath(uid, collectionName, id),
-          data: userOwnedRecord(uid, record, id, true),
-        });
-      } catch {
-        // Malformed legacy records are preserved locally and are not uploaded.
-      }
-    }
-  }
-  return operations;
-}
-
 export function getFriendlySyncError(error: unknown): string {
   const candidate = error as { code?: string; message?: string };
   if (candidate?.code?.includes('permission-denied')) {
@@ -216,64 +139,39 @@ function applyAndPublish(data: TrackerData, callbacks: UserSyncCallbacks): void 
   callbacks.onData(data);
 }
 
-function attachRealtimeListeners(
-  uid: string,
-  initial: TrackerData,
-  callbacks: UserSyncCallbacks,
-  isActive: () => boolean
-): Array<() => void> {
-  let current = initial;
-  const userRef = doc(db, 'users', uid);
-  const stops: Array<() => void> = [];
-  const publishPatch = (patch: PartialTrackerData) => {
-    if (!isActive()) return;
-    current = { ...current, ...patch };
-    applyAndPublish(current, callbacks);
-  };
-  const onListenerError = (error: unknown) => {
-    if (isActive()) callbacks.onStatus('error', getFriendlySyncError(error));
-  };
-
-  stops.push(onSnapshot(userRef, (snapshot) => {
-    if (!snapshot.exists()) return;
-    publishPatch({ profile: profileFromDocument(snapshot.data()) });
-  }, onListenerError));
-
-  for (const collectionName of COLLECTIONS) {
-    const collectionRef = collection(db, 'users', uid, collectionName);
-    stops.push(onSnapshot(collectionRef, (snapshot) => {
-      if (!isActive()) return;
-      if (collectionName === 'budgets') {
-        publishPatch({ budgets: budgetsFromSnapshot(snapshot) });
-      } else if (collectionName === 'categories') {
-        const categories = documentsFromSnapshot<Category & { id: string }>(snapshot);
-        publishPatch({ categories: categories.length ? categories : [...DEFAULT_CATEGORIES] });
-      } else if (collectionName === 'transactions') {
-        publishPatch({ transactions: sortTransactionsNewestFirst(documentsFromSnapshot<Transaction>(snapshot)) });
-      } else {
-        publishPatch({ [collectionName]: documentsFromSnapshot(snapshot) } as PartialTrackerData);
-      }
-    }, onListenerError));
-  }
-  return stops;
-}
-
 /**
- * Load, idempotently migrate, and then listen to only the authenticated user's
- * profile and data collections. Legacy unscoped values are UID-claimed before
- * any asynchronous read and are never removed by this service.
+ * Starts real-time Firestore listeners for the authenticated user.
+ * Loads live data using onSnapshot (expenses list, profile, budgets, etc.)
+ * so any Add/Edit/Delete or Receipt upload reflects instantly across all open
+ * browsers and devices without needing a page refresh.
+ * 
+ * Safely manages unsubscribe functions on logout and page unload to prevent memory leaks.
  */
 export function startUserDataSync(uid: string, callbacks: UserSyncCallbacks): () => void {
+  // If demo/guest account, skip remote Firestore to avoid permission-denied errors
+  if (uid === 'guest_user' || uid === 'default_user') {
+    const local = storageService.getCurrentSnapshot();
+    applyAndPublish(local, callbacks);
+    callbacks.onReady();
+    callbacks.onStatus('saved');
+    return () => {};
+  }
+
   let disposed = false;
-  let generation = 0;
   let readyNotified = false;
-  let listenerStops: Array<() => void> = [];
+  const listenerStops: Array<() => void> = [];
 
   const stopListeners = () => {
-    for (const stop of listenerStops) stop();
-    listenerStops = [];
+    for (const stop of listenerStops) {
+      try {
+        stop();
+      } catch (err) {
+        console.warn('[Firestore] Error stopping real-time listener:', err);
+      }
+    }
+    listenerStops.length = 0;
   };
-  const isActive = () => !disposed;
+
   const notifyReady = () => {
     if (!readyNotified) {
       readyNotified = true;
@@ -281,75 +179,134 @@ export function startUserDataSync(uid: string, callbacks: UserSyncCallbacks): ()
     }
   };
 
-  const initialize = async () => {
-    const currentGeneration = ++generation;
-    stopListeners();
-    callbacks.onStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'syncing');
-    let localFallback: TrackerData | undefined;
+  // Immediate local state push so UI is instantly populated without blank screen
+  const initialLocalData = storageService.getCurrentSnapshot();
+  applyAndPublish(initialLocalData, callbacks);
+  let currentTrackerData: TrackerData = { ...initialLocalData };
 
-    try {
-      const includeLegacy = storageService.claimLegacyDataForUser(uid);
-      const sources = storageService.getMigrationSources(uid, includeLegacy);
-      const local = mergeLocalData(
-        sources.user,
-        sources.legacy,
-        storageService.getProfile(),
-        DEFAULT_CATEGORIES
-      );
-      localFallback = local;
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        applyAndPublish(mergeRemoteAndLocalData({}, local, DEFAULT_CATEGORIES), callbacks);
-        notifyReady();
-        callbacks.onStatus('offline');
-        return;
-      }
-      const remote = await readRemoteUserData(uid);
-      if (disposed || currentGeneration !== generation) return;
+  callbacks.onStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'syncing');
 
-      const operations = buildMigrationOperations(uid, remote, local);
-      if (operations.length) await commitOperations(operations);
-      if (disposed || currentGeneration !== generation) return;
-
-      const initial = mergeRemoteAndLocalData(remote.data, local, DEFAULT_CATEGORIES);
-      applyAndPublish(initial, callbacks);
-      listenerStops = attachRealtimeListeners(
-        uid,
-        initial,
-        callbacks,
-        () => !disposed && currentGeneration === generation
-      );
-      notifyReady();
-      callbacks.onStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'saved');
-    } catch (error) {
-      if (disposed || currentGeneration !== generation) return;
-      applyAndPublish(localFallback || storageService.getCurrentSnapshot(), callbacks);
-      notifyReady();
-      callbacks.onStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'error', getFriendlySyncError(error));
-    }
-  };
-
-  const handleOnline = () => {
+  // Central error handler for onSnapshot listeners
+  const handleListenerError = (collectionOrDocName: string, error: unknown) => {
     if (disposed) return;
-    callbacks.onStatus('syncing');
-    void initialize();
+    console.error(`[Firestore Real-time Listener Error - ${collectionOrDocName}]:`, error);
+    const candidate = error as { code?: string; message?: string };
+    if (candidate?.code?.includes('permission-denied')) {
+      console.error(
+        `[Firestore Permission Denied]: Access denied for path users/${uid}/${collectionOrDocName}. Please ensure security rules permit authenticated access.`
+      );
+    }
+    callbacks.onStatus(
+      typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'error',
+      getFriendlySyncError(error)
+    );
   };
-  const handleOffline = () => {
-    if (!disposed) callbacks.onStatus('offline');
+
+  // 1. Real-time User Profile Listener (onSnapshot on doc users/{uid})
+  try {
+    const userRef = doc(db, 'users', uid);
+    const unsubProfile = onSnapshot(
+      userRef,
+      (snapshot) => {
+        if (disposed) return;
+        if (snapshot.exists()) {
+          const profile = profileFromDocument(snapshot.data());
+          currentTrackerData = { ...currentTrackerData, profile };
+          applyAndPublish(currentTrackerData, callbacks);
+        } else {
+          // Initialize remote document for first-time sign-ups
+          const defaultProf = storageService.getProfile();
+          void setDoc(
+            userRef,
+            {
+              ...(cleanFirestoreValue(defaultProf) as DocumentData),
+              userId: uid,
+              createdAtServer: serverTimestamp(),
+              updatedAtServer: serverTimestamp(),
+            },
+            { merge: true }
+          ).catch((err) => {
+            console.error('[Firestore] Error creating initial user profile document:', err);
+          });
+        }
+        notifyReady();
+        callbacks.onStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'saved');
+      },
+      (error) => handleListenerError('profile', error)
+    );
+    listenerStops.push(unsubProfile);
+  } catch (err) {
+    handleListenerError('profile', err);
+  }
+
+  // 2. Real-time Subcollection Listeners (Transactions, Categories, Budgets, Savings, Credit/Debit, Loans)
+  for (const collectionName of COLLECTIONS) {
+    try {
+      const colRef = collection(db, 'users', uid, collectionName);
+      const unsubCollection = onSnapshot(
+        colRef,
+        (snapshot) => {
+          if (disposed) return;
+
+          // If categories are empty on brand new user account, seed default categories
+          if (snapshot.empty && collectionName === 'categories') {
+            const defaultCats = storageService.getCategories();
+            for (const cat of defaultCats) {
+              const catRef = doc(db, 'users', uid, 'categories', toFirestoreDocumentId(cat.id));
+              void setDoc(catRef, userOwnedRecord(uid, cat as unknown as Record<string, unknown>, cat.id, true), { merge: true }).catch(console.warn);
+            }
+          }
+
+          if (collectionName === 'transactions') {
+            // Live Expenses List: automatically re-renders smoothly across all open devices
+            const liveTxs = sortTransactionsNewestFirst(documentsFromSnapshot<Transaction>(snapshot));
+            currentTrackerData = { ...currentTrackerData, transactions: liveTxs };
+          } else if (collectionName === 'categories') {
+            const liveCategories = documentsFromSnapshot<Category & { id: string }>(snapshot);
+            currentTrackerData = {
+              ...currentTrackerData,
+              categories: liveCategories.length ? liveCategories : [...DEFAULT_CATEGORIES],
+            };
+          } else if (collectionName === 'budgets') {
+            currentTrackerData = { ...currentTrackerData, budgets: budgetsFromSnapshot(snapshot) };
+          } else if (collectionName === 'savingsGoals') {
+            currentTrackerData = { ...currentTrackerData, savingsGoals: documentsFromSnapshot(snapshot) };
+          } else if (collectionName === 'creditDebitRecords') {
+            currentTrackerData = { ...currentTrackerData, creditDebitRecords: documentsFromSnapshot(snapshot) };
+          } else if (collectionName === 'loans') {
+            currentTrackerData = { ...currentTrackerData, loans: documentsFromSnapshot(snapshot) };
+          }
+
+          // Push updated state: updates localStorage & React state triggers smooth re-render
+          applyAndPublish(currentTrackerData, callbacks);
+          notifyReady();
+          callbacks.onStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'saved');
+        },
+        (error) => handleListenerError(collectionName, error)
+      );
+      listenerStops.push(unsubCollection);
+    } catch (err) {
+      handleListenerError(collectionName, err);
+    }
+  }
+
+  // Prevent memory leaks on page unload / tab close
+  const handlePageUnload = () => {
+    stopListeners();
   };
 
   if (typeof window !== 'undefined') {
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener('beforeunload', handlePageUnload);
+    window.addEventListener('pagehide', handlePageUnload);
   }
-  void initialize();
 
+  // Return unsubscribe cleanup function for React unmount (e.g. on user logout)
   return () => {
     disposed = true;
-    generation += 1;
     stopListeners();
     if (typeof window !== 'undefined') {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('beforeunload', handlePageUnload);
+      window.removeEventListener('pagehide', handlePageUnload);
     }
   };
 }
