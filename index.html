@@ -9,6 +9,12 @@
     <meta property="og:description" content="Modern personal finance, budgeting, and expense management application with real-time summaries, smart categorization, savings goals, and loan tracking." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Ensure trailing slash on GitHub Pages so relative assets resolve accurately
+      if (window.location.pathname.endsWith('/Smart-Expense')) {
+        window.location.replace(window.location.pathname + '/' + window.location.search + window.location.hash);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

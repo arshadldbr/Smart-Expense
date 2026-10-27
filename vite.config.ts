@@ -23,7 +23,7 @@ function githubPagesSpa(): Plugin {
 
 export default defineConfig(({ command }) => {
   return {
-    base: process.env.VITE_BASE_PATH || '/',
+    base: process.env.VITE_BASE_PATH || (command === 'build' ? './' : '/'),
     plugins: [react(), tailwindcss(), githubPagesSpa()],
     resolve: {
       alias: {
